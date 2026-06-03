@@ -96,8 +96,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return error(res, 405, 'METHOD_NOT_ALLOWED', `Method ${method} not allowed`);
     }
 
-    // /api/plans/:id/entries
-    if (segments.length === 2 && segments[1] === 'entries') {
+    // /api/plans/:id/entries  (also matches /api/plans/:id/entries/list via vercel rewrite)
+    if (
+      (segments.length === 2 && segments[1] === 'entries') ||
+      (segments.length === 3 && segments[1] === 'entries' && segments[2] === 'list')
+    ) {
       const planId = segments[0]!;
       if (method === 'GET') {
         const dayOfWeekParam = req.query.day_of_week as string | undefined;

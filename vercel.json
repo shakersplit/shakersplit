@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/api/plans", "destination": "/api/plans/list" },
+    { "source": "/api/plans/:id/entries", "destination": "/api/plans/:id/entries/list" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ],
   "headers": [
