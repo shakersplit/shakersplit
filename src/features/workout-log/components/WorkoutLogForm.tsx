@@ -6,6 +6,7 @@ import { useCreateWorkoutLog } from '../hooks/useCreateWorkoutLog';
 import { Plus, Trash2 } from 'lucide-react';
 import type { WorkoutType } from '@/types';
 import { WorkoutTemplatesPicker, SaveAsTemplateButton, type WorkoutTemplate } from './WorkoutTemplates';
+import { AIQuickLogBar } from '@/components/ai/AIQuickLogBar';
 
 const exerciseSchema = z.object({
   name: z.string().min(1, 'Exercise name required'),
@@ -51,6 +52,15 @@ const WORKOUT_TYPES: { value: WorkoutType; label: string }[] = [
 
 interface WorkoutLogFormProps {
   onSuccess?: () => void;
+}
+
+interface AIWorkoutResponse {
+  workout_type: WorkoutType;
+  duration_minutes: number;
+  exercises: { name: string; sets?: number; reps?: number; weight_kg?: number; distance_km?: number }[];
+  calories_burned?: number;
+  notes: string | null;
+  confidence: 'high' | 'medium' | 'low';
 }
 
 export function WorkoutLogForm({ onSuccess }: WorkoutLogFormProps) {
@@ -113,8 +123,34 @@ export function WorkoutLogForm({ onSuccess }: WorkoutLogFormProps) {
     );
   };
 
+  /** Drop the parsed AI response into the form fields. */
+  const applyAIParse = (parsed: AIWorkoutResponse) => {
+    setValue('workout_type', parsed.workout_type);
+    setValue('duration_minutes', parsed.duration_minutes);
+    if (parsed.calories_burned !== undefined) setValue('calories_burned', parsed.calories_burned);
+    if (parsed.notes) setValue('notes', parsed.notes);
+    replace(
+      parsed.exercises.length > 0
+        ? parsed.exercises.map((e) => ({
+            name: e.name,
+            sets: e.sets,
+            reps: e.reps,
+            weight_kg: e.weight_kg,
+            distance_km: e.distance_km,
+          }))
+        : [{ name: '', sets: undefined, reps: undefined, weight_kg: undefined }],
+    );
+  };
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      {/* AI parser — natural-language entry */}
+      <AIQuickLogBar<AIWorkoutResponse>
+        endpoint="/workout-logs"
+        placeholder="e.g. push day, 60 min, bench 4x8 @ 80kg, OHP 3x10 @ 50kg"
+        onParsed={applyAIParse}
+      />
+
       {/* Templates picker — appears only if user has saved any */}
       <WorkoutTemplatesPicker onPick={applyTemplate} />
       {/* Workout Type */}

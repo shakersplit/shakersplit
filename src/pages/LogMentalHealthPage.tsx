@@ -16,6 +16,16 @@ import {
 } from '@/features/mental-health-log';
 import type { MentalHealthLog } from '@/features/mental-health-log';
 import { formatDate } from '@/lib/utils';
+import { AIQuickLogBar } from '@/components/ai/AIQuickLogBar';
+
+interface AIMentalResponse {
+  mood_score: number;
+  sleep_hours?: number;
+  sleep_quality?: number;
+  journal_entry: string | null;
+  tags: string[];
+  confidence: 'high' | 'medium' | 'low';
+}
 
 const MOOD_DESCRIPTORS: Record<number, string> = {
   1: 'Very low', 2: 'Low', 3: 'Down', 4: 'Off', 5: 'Neutral',
@@ -123,6 +133,18 @@ export function LogMentalHealthPage() {
 
       {showForm && (
         <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-card p-5 space-y-5">
+          <AIQuickLogBar<AIMentalResponse>
+            endpoint="/mental-health-logs"
+            placeholder="e.g. slept 7 hours, feeling pretty good but anxious about Monday"
+            onParsed={(parsed) => {
+              setMoodScore(parsed.mood_score);
+              if (parsed.sleep_hours !== undefined) setSleepHours(parsed.sleep_hours.toString());
+              if (parsed.sleep_quality !== undefined) setSleepQuality(parsed.sleep_quality);
+              if (parsed.journal_entry) setJournal(parsed.journal_entry);
+              if (Array.isArray(parsed.tags) && parsed.tags.length > 0) setTags(parsed.tags.slice(0, 20));
+            }}
+          />
+
           {/* Mood scale 1-10 */}
           <div>
             <div className="flex items-center justify-between mb-2">

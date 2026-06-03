@@ -94,28 +94,19 @@ export default createHandler({
 // ── AI parser ───────────────────────────────────────────────────────────────
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-interface ParsedFoodItem {
-  name: string;
-  quantity: string;
-  calories?: number;
-  protein_g?: number;
-}
+import { parseWithGemini, respondParseResult } from './_lib/utils/gemini.util';
 
 interface ParsedFoodResponse {
   meal_type: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK' | 'PRE_GAME';
-  items: ParsedFoodItem[];
+  items: { name: string; quantity: string; calories?: number; protein_g?: number }[];
   total_calories: number;
   total_protein_g: number;
   notes: string | null;
   confidence: 'high' | 'medium' | 'low';
 }
 
-/**
- * Strict JSON schema we ask Gemini to produce. Properties match the food-logs database
- * shape so the frontend can drop the response straight into the form.
- */
-const RESPONSE_SCHEMA = {
+/** Strict JSON schema. Properties match food_logs columns so the frontend can drop the result straight into the form. */
+const FOOD_SCHEMA = {
   type: 'object',
   properties: {
     meal_type: {
@@ -137,102 +128,31 @@ const RESPONSE_SCHEMA = {
         required: ['name', 'quantity'],
       },
     },
-    total_calories: { type: 'number', description: 'Sum of per-item calorie estimates.' },
-    total_protein_g: { type: 'number', description: 'Sum of per-item protein estimates.' },
-    notes: { type: 'string', description: "Anything the user said that doesn't fit elsewhere. Empty string if nothing relevant." },
-    confidence: {
-      type: 'string',
-      enum: ['high', 'medium', 'low'],
-      description: 'How sure you are about the macros. low = guessing, high = user gave specifics.',
-    },
+    total_calories: { type: 'number' },
+    total_protein_g: { type: 'number' },
+    notes: { type: 'string' },
+    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
   },
   required: ['meal_type', 'items', 'total_calories', 'total_protein_g', 'confidence'],
 } as const;
 
-const SYSTEM_PROMPT =
+const FOOD_SYSTEM_PROMPT =
   "You are a nutrition-logging assistant. Given a user's plain-English meal description, return a single JSON object matching the schema. Use round numbers for calories and protein. If the user gives specific quantities (e.g. \"200g chicken\"), use them; otherwise estimate based on standard restaurant/home portion sizes. Always include at least one item. Return ONLY the JSON, no prose.";
 
 async function parseAIHandler(req: VercelRequest, res: VercelResponse) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return error(res, 503, 'SERVICE_UNAVAILABLE', 'AI parser is not configured on this server. Set GEMINI_API_KEY in Vercel env to enable.');
-  }
+  const description = ((req.body ?? {}) as { description?: string }).description ?? '';
 
-  const description = ((req.body ?? {}) as { description?: string }).description?.trim();
-  if (!description) {
-    return error(res, 400, 'VALIDATION_ERROR', 'Body must include a non-empty `description` field.');
-  }
-  if (description.length > 2000) {
-    return error(res, 400, 'VALIDATION_ERROR', 'Description too long (max 2000 chars).');
-  }
-
-  // Direct REST call — works for both legacy AIzaSy* keys and the newer AQ.Ab* short-lived keys.
-  // The @google/generative-ai SDK rejects the new key format as of late 2026.
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
-  const requestBody = {
-    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents: [{ role: 'user', parts: [{ text: description }] }],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: RESPONSE_SCHEMA,
-      temperature: 0.2,
-      maxOutputTokens: 1024,
+  const result = await parseWithGemini<ParsedFoodResponse>({
+    systemPrompt: FOOD_SYSTEM_PROMPT,
+    responseSchema: FOOD_SCHEMA,
+    description,
+    postProcess: (raw) => {
+      const r = raw as ParsedFoodResponse;
+      // Empty-string notes -> null so the frontend can use truthy checks.
+      if ((r.notes as unknown) === '') r.notes = null;
+      return r;
     },
-  };
+  });
 
-  let geminiResponse: Response;
-  try {
-    geminiResponse = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-goog-api-key': apiKey,
-      },
-      body: JSON.stringify(requestBody),
-    });
-  } catch (err) {
-    console.error('Gemini fetch failed:', err);
-    return error(res, 502, 'BAD_UPSTREAM', 'Could not reach Gemini. Try again or fill in manually.');
-  }
-
-  if (!geminiResponse.ok) {
-    const text = await geminiResponse.text();
-    console.error('Gemini error response:', geminiResponse.status, text.slice(0, 500));
-    if (geminiResponse.status === 429) {
-      return error(res, 429, 'RATE_LIMITED', 'AI parser is busy. Try again in a few seconds, or fill in manually.');
-    }
-    if (geminiResponse.status === 401 || geminiResponse.status === 403) {
-      return error(res, 502, 'BAD_UPSTREAM', 'AI key was rejected. Tell the developer.');
-    }
-    return error(res, 502, 'BAD_UPSTREAM', `Gemini returned ${geminiResponse.status}.`);
-  }
-
-  // Gemini's structured-output mode returns the JSON string in candidates[0].content.parts[0].text.
-  let body: {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string }> };
-      finishReason?: string;
-    }>;
-  };
-  try {
-    body = (await geminiResponse.json()) as typeof body;
-  } catch {
-    return error(res, 502, 'BAD_UPSTREAM', 'AI returned non-JSON envelope.');
-  }
-
-  const text = body.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    return error(res, 502, 'BAD_UPSTREAM', 'AI returned empty response.');
-  }
-
-  let parsed: ParsedFoodResponse;
-  try {
-    parsed = JSON.parse(text) as ParsedFoodResponse;
-  } catch {
-    return error(res, 502, 'BAD_UPSTREAM', 'AI returned malformed JSON.');
-  }
-
-  // Empty-string notes -> null so the frontend can use truthy checks.
-  if (parsed.notes === '') parsed.notes = null;
-  return success(res, parsed);
+  return respondParseResult(res, result);
 }

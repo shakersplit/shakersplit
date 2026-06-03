@@ -1,14 +1,17 @@
 /**
- * Weight logs — single-file CRUD handler.
+ * Weight logs — single-file CRUD handler with AI parser.
  *   GET/POST   /api/weight-logs
  *   PATCH/DELETE  /api/weight-logs?id=:id
+ *   POST       /api/weight-logs?action=parse-ai
  */
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHandler } from './_lib/factories/handler.factory';
 import { validateBody } from './_lib/middleware/validate.middleware';
 import { createWeightLogSchema } from './_lib/validators/weight-log.validator';
 import { weightLogRepository } from './_lib/repositories/weight-log.repository';
 import { parsePagination } from './_lib/utils/pagination.util';
 import { success, paginated, error } from './_lib/utils/response.util';
+import { parseWithGemini, respondParseResult } from './_lib/utils/gemini.util';
 
 export default createHandler({
   async GET(req, res, user) {
@@ -24,6 +27,8 @@ export default createHandler({
   },
 
   async POST(req, res, user) {
+    if (req.query.action === 'parse-ai') return parseWeightHandler(req, res);
+
     const body = validateBody(req, res, createWeightLogSchema);
     if (!body) return;
     const { data, error: dbError } = await weightLogRepository.create({
@@ -66,3 +71,44 @@ export default createHandler({
     return success(res, { deleted: true });
   },
 });
+
+// ── AI parser ───────────────────────────────────────────────────────────────
+
+interface ParsedWeightResponse {
+  weight_kg: number;
+  body_fat_pct?: number;
+  notes: string | null;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+const WEIGHT_SCHEMA = {
+  type: 'object',
+  properties: {
+    weight_kg: {
+      type: 'number',
+      description: 'Weight in kg. Convert from lbs (1 lb = 0.453592 kg) if needed. Reject anything outside 20-500.',
+    },
+    body_fat_pct: { type: 'number', description: 'Body fat percentage 0-100 if mentioned.' },
+    notes: { type: 'string', description: "Time of day (morning/evening), context. Empty string if nothing relevant." },
+    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+  },
+  required: ['weight_kg', 'confidence'],
+} as const;
+
+const WEIGHT_SYSTEM_PROMPT =
+  "You are a body-metrics-logging assistant. Given a user's plain-English weight description, return a single JSON object matching the schema. Convert lbs/stones to kg. Confidence high if user gave a specific number, low if vague. Return ONLY the JSON.";
+
+async function parseWeightHandler(req: VercelRequest, res: VercelResponse) {
+  const description = ((req.body ?? {}) as { description?: string }).description ?? '';
+  const result = await parseWithGemini<ParsedWeightResponse>({
+    systemPrompt: WEIGHT_SYSTEM_PROMPT,
+    responseSchema: WEIGHT_SCHEMA,
+    description,
+    postProcess: (raw) => {
+      const r = raw as ParsedWeightResponse;
+      if ((r.notes as unknown) === '') r.notes = null;
+      return r;
+    },
+  });
+  return respondParseResult(res, result);
+}

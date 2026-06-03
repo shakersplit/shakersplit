@@ -3,11 +3,10 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCreateFoodLog } from '../hooks/useCreateFoodLog';
-import { Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import type { MealType } from '@/types';
 import { PhotoUploader } from '@/components/photo/PhotoUploader';
-import { apiClient } from '@/lib/api-client';
-import type { ApiResponse } from '@/types';
+import { AIQuickLogBar } from '@/components/ai/AIQuickLogBar';
 
 const foodItemSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -38,17 +37,21 @@ const MEAL_TYPES: { value: MealType; label: string }[] = [
   { value: 'PRE_GAME', label: 'Pre-Game' },
 ];
 
+interface AIFoodResponse {
+  meal_type: MealType;
+  items: { name: string; quantity: string; calories?: number; protein_g?: number }[];
+  total_calories: number;
+  total_protein_g: number;
+  notes: string | null;
+  confidence: 'high' | 'medium' | 'low';
+}
+
 export function FoodLogForm({ onSuccess }: FoodLogFormProps) {
   const [submitError, setSubmitError] = useState('');
   // Photo URL is local state — gets attached to the create payload as photo_url.
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   // Share-with-friends opt-in for THIS log only. Defaults off for privacy.
   const [shareWithFriends, setShareWithFriends] = useState(false);
-  // AI parser state
-  const [aiInput, setAiInput] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState('');
-  const [aiConfidence, setAiConfidence] = useState<'high' | 'medium' | 'low' | null>(null);
   const createFoodLog = useCreateFoodLog();
 
   const {
@@ -84,98 +87,36 @@ export function FoodLogForm({ onSuccess }: FoodLogFormProps) {
       reset();
       setPhotoUrl(null);
       setShareWithFriends(false);
-      setAiConfidence(null);
       onSuccess?.();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create food log');
     }
   };
 
-  /**
-   * Send the user's plain-English meal description to the AI parser, then auto-populate
-   * the form with the structured response. The user can still edit any field afterward.
-   */
-  const runAIParse = async () => {
-    setAiError('');
-    setAiConfidence(null);
-    if (!aiInput.trim()) return;
-    setAiLoading(true);
-    try {
-      const res = await apiClient<ApiResponse<{
-        meal_type: MealType;
-        items: { name: string; quantity: string; calories?: number; protein_g?: number }[];
-        total_calories: number;
-        total_protein_g: number;
-        notes: string | null;
-        confidence: 'high' | 'medium' | 'low';
-      }>>('/food-logs', {
-        method: 'POST',
-        params: { action: 'parse-ai' },
-        body: { description: aiInput },
-      });
-
-      const parsed = res.data;
-      setValue('meal_type', parsed.meal_type);
-      replace(
-        parsed.items.map((i) => ({
-          name: i.name,
-          quantity: i.quantity,
-          calories: i.calories,
-          protein_g: i.protein_g,
-        })),
-      );
-      setValue('total_calories', parsed.total_calories);
-      setValue('total_protein_g', parsed.total_protein_g);
-      if (parsed.notes) setValue('notes', parsed.notes);
-      setAiConfidence(parsed.confidence);
-      setAiInput('');
-    } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'AI parse failed');
-    } finally {
-      setAiLoading(false);
-    }
+  /** Drop the parsed AI response into the form fields. */
+  const applyAIParse = (parsed: AIFoodResponse) => {
+    setValue('meal_type', parsed.meal_type);
+    replace(
+      parsed.items.map((i) => ({
+        name: i.name,
+        quantity: i.quantity,
+        calories: i.calories,
+        protein_g: i.protein_g,
+      })),
+    );
+    setValue('total_calories', parsed.total_calories);
+    setValue('total_protein_g', parsed.total_protein_g);
+    if (parsed.notes) setValue('notes', parsed.notes);
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       {/* AI parser — natural-language entry. Optional shortcut. */}
-      <div className="rounded-lg border border-mental/30 bg-mental/5 p-3 space-y-2">
-        <div className="flex items-center gap-2 text-xs font-medium text-mental">
-          <Sparkles className="h-3.5 w-3.5" /> Quick log with AI
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={aiInput}
-            onChange={(e) => setAiInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void runAIParse();
-              }
-            }}
-            placeholder="e.g. 2 scrambled eggs, toast, and a banana"
-            disabled={aiLoading}
-            className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-          />
-          <button
-            type="button"
-            onClick={runAIParse}
-            disabled={aiLoading || !aiInput.trim()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-mental px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            {aiLoading ? 'Parsing…' : 'Parse'}
-          </button>
-        </div>
-        {aiError && <p className="text-xs text-destructive">{aiError}</p>}
-        {aiConfidence && (
-          <p className="text-xs text-muted-foreground">
-            Filled in below — review the values before saving.
-            {aiConfidence === 'low' && ' AI marked this as low confidence; double-check macros.'}
-          </p>
-        )}
-      </div>
+      <AIQuickLogBar<AIFoodResponse>
+        endpoint="/food-logs"
+        placeholder="e.g. 2 scrambled eggs, toast, and a banana"
+        onParsed={applyAIParse}
+      />
 
       {/* Meal Type Selector */}
       <div>

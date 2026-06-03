@@ -4,6 +4,7 @@ import { Scale, Plus, TrendingUp, TrendingDown, Trash2, Minus } from 'lucide-rea
 import { apiClient } from '@/lib/api-client';
 import { formatDate } from '@/lib/utils';
 import type { ApiResponse, PaginatedResponse } from '@/types';
+import { AIQuickLogBar } from '@/components/ai/AIQuickLogBar';
 
 interface WeightLog {
   id: string;
@@ -11,6 +12,13 @@ interface WeightLog {
   weight_kg: number;
   body_fat_pct: number | null;
   notes: string | null;
+}
+
+interface AIWeightResponse {
+  weight_kg: number;
+  body_fat_pct?: number;
+  notes: string | null;
+  confidence: 'high' | 'medium' | 'low';
 }
 
 export function LogWeightPage() {
@@ -113,6 +121,15 @@ export function LogWeightPage() {
       {/* Add form */}
       {showForm && (
         <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-card p-5 space-y-4">
+          <AIQuickLogBar<AIWeightResponse>
+            endpoint="/weight-logs"
+            placeholder="e.g. 76.4 kg this morning, 14% body fat"
+            onParsed={(parsed) => {
+              setWeightKg(parsed.weight_kg.toString());
+              if (parsed.body_fat_pct !== undefined) setBodyFat(parsed.body_fat_pct.toString());
+              if (parsed.notes) setNotes(parsed.notes);
+            }}
+          />
           <div className="grid gap-4 grid-cols-2">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Weight (kg)</label>

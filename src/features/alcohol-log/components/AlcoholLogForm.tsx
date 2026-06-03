@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCreateAlcoholLog } from '../hooks/useCreateAlcoholLog';
+import { AIQuickLogBar } from '@/components/ai/AIQuickLogBar';
 
 const alcoholLogSchema = z.object({
   spirit_type: z.string().min(1, 'Spirit type is required'),
@@ -16,6 +17,17 @@ const alcoholLogSchema = z.object({
 });
 
 type AlcoholLogFormValues = z.infer<typeof alcoholLogSchema>;
+
+interface AIAlcoholResponse {
+  spirit_type: string;
+  quantity_ml: number;
+  mixer: string | null;
+  pre_game_meal_eaten: boolean;
+  water_consumed_ml?: number;
+  intoxication_level?: number;
+  notes: string | null;
+  confidence: 'high' | 'medium' | 'low';
+}
 
 const SPIRIT_OPTIONS = [
   'Vodka',
@@ -41,6 +53,7 @@ export function AlcoholLogForm({ onSuccess }: AlcoholLogFormProps) {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<AlcoholLogFormValues>({
     resolver: zodResolver(alcoholLogSchema),
@@ -65,8 +78,25 @@ export function AlcoholLogForm({ onSuccess }: AlcoholLogFormProps) {
     }
   };
 
+  /** Drop the parsed AI response into the form fields. */
+  const applyAIParse = (parsed: AIAlcoholResponse) => {
+    setValue('spirit_type', parsed.spirit_type.toLowerCase());
+    setValue('quantity_ml', parsed.quantity_ml);
+    if (parsed.mixer) setValue('mixer', parsed.mixer);
+    setValue('pre_game_meal_eaten', parsed.pre_game_meal_eaten);
+    if (parsed.water_consumed_ml !== undefined) setValue('water_consumed_ml', parsed.water_consumed_ml);
+    if (parsed.intoxication_level !== undefined) setValue('intoxication_level', parsed.intoxication_level);
+    if (parsed.notes) setValue('notes', parsed.notes);
+  };
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <AIQuickLogBar<AIAlcoholResponse>
+        endpoint="/alcohol-logs"
+        placeholder="e.g. 2 vodka sodas after dinner, drank 500ml water"
+        onParsed={applyAIParse}
+      />
+
       {/* Spirit Type */}
       <div>
         <label className="block text-sm font-medium mb-2">Spirit Type</label>
