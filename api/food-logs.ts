@@ -9,12 +9,12 @@
  *
  * Single file because Vercel Hobby plan limits us to 12 serverless functions total.
  *
- * AI parser uses Google's Gemini Flash via the @google/generative-ai SDK. Gemini's free tier
- * (15 RPM, 1M tokens/day, no card required) is more than enough for 80 users averaging a
- * handful of parses per day. Set GEMINI_API_KEY to enable; without it the endpoint returns
- * 503 gracefully and the form falls back to manual entry.
+ * AI parser calls Gemini's REST API directly (not the @google/generative-ai SDK) so it works
+ * with both legacy AIzaSy* keys AND the newer AQ.Ab* short-lived keys from AI Studio. Uses
+ * gemini-flash-latest with a strict response schema for reliable JSON output. Set
+ * GEMINI_API_KEY to enable; without it the endpoint returns 503 gracefully and the form
+ * falls back to manual entry.
  */
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { createHandler } from './_lib/factories/handler.factory';
 import { validateBody } from './_lib/middleware/validate.middleware';
 import { createFoodLogSchema } from './_lib/validators/food-log.validator';
@@ -95,15 +95,6 @@ export default createHandler({
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-let genAI: GoogleGenerativeAI | null = null;
-function getGenAI(): GoogleGenerativeAI | null {
-  if (genAI) return genAI;
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
-  genAI = new GoogleGenerativeAI(apiKey);
-  return genAI;
-}
-
 interface ParsedFoodItem {
   name: string;
   quantity: string;
@@ -121,50 +112,49 @@ interface ParsedFoodResponse {
 }
 
 /**
- * Gemini's structured output schema. Same shape we want back as JSON; using SchemaType.OBJECT
- * with strict properties forces the model to return well-formed JSON we can parse without
- * brittle prose-extraction logic.
+ * Strict JSON schema we ask Gemini to produce. Properties match the food-logs database
+ * shape so the frontend can drop the response straight into the form.
  */
 const RESPONSE_SCHEMA = {
-  type: SchemaType.OBJECT,
+  type: 'object',
   properties: {
     meal_type: {
-      type: SchemaType.STRING,
+      type: 'string',
       enum: ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'PRE_GAME'],
       description:
-        "Best inference from time-of-day language (morning -> BREAKFAST, midday -> LUNCH, evening -> DINNER, between -> SNACK, before-night-out -> PRE_GAME). Default to SNACK if unclear.",
+        'Best inference from time-of-day language (morning -> BREAKFAST, midday -> LUNCH, evening -> DINNER, between -> SNACK, before-night-out -> PRE_GAME). Default to SNACK if unclear.',
     },
     items: {
-      type: SchemaType.ARRAY,
+      type: 'array',
       items: {
-        type: SchemaType.OBJECT,
+        type: 'object',
         properties: {
-          name: { type: SchemaType.STRING, description: 'Food/dish name, capitalized.' },
-          quantity: { type: SchemaType.STRING, description: 'Human-readable amount: "1 cup", "200g", "2 slices".' },
-          calories: { type: SchemaType.NUMBER, description: 'Estimated kcal for THIS item.' },
-          protein_g: { type: SchemaType.NUMBER, description: 'Estimated protein grams for THIS item.' },
+          name: { type: 'string', description: 'Food/dish name, capitalized.' },
+          quantity: { type: 'string', description: 'Human-readable amount: "1 cup", "200g", "2 slices".' },
+          calories: { type: 'number', description: 'Estimated kcal for THIS item.' },
+          protein_g: { type: 'number', description: 'Estimated protein grams for THIS item.' },
         },
         required: ['name', 'quantity'],
       },
     },
-    total_calories: { type: SchemaType.NUMBER, description: 'Sum of per-item calorie estimates.' },
-    total_protein_g: { type: SchemaType.NUMBER, description: 'Sum of per-item protein estimates.' },
-    notes: { type: SchemaType.STRING, description: 'Anything the user said that doesn\'t fit elsewhere. Empty string if nothing relevant.' },
+    total_calories: { type: 'number', description: 'Sum of per-item calorie estimates.' },
+    total_protein_g: { type: 'number', description: 'Sum of per-item protein estimates.' },
+    notes: { type: 'string', description: "Anything the user said that doesn't fit elsewhere. Empty string if nothing relevant." },
     confidence: {
-      type: SchemaType.STRING,
+      type: 'string',
       enum: ['high', 'medium', 'low'],
       description: 'How sure you are about the macros. low = guessing, high = user gave specifics.',
     },
   },
   required: ['meal_type', 'items', 'total_calories', 'total_protein_g', 'confidence'],
-};
+} as const;
 
 const SYSTEM_PROMPT =
-  'You are a nutrition-logging assistant. Given a user\'s plain-English meal description, return a single JSON object matching the schema. Use round numbers for calories and protein. If the user gives specific quantities (e.g. "200g chicken"), use them; otherwise estimate based on standard restaurant/home portion sizes. Always include at least one item. Return ONLY the JSON, no prose.';
+  "You are a nutrition-logging assistant. Given a user's plain-English meal description, return a single JSON object matching the schema. Use round numbers for calories and protein. If the user gives specific quantities (e.g. \"200g chicken\"), use them; otherwise estimate based on standard restaurant/home portion sizes. Always include at least one item. Return ONLY the JSON, no prose.";
 
 async function parseAIHandler(req: VercelRequest, res: VercelResponse) {
-  const client = getGenAI();
-  if (!client) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     return error(res, 503, 'SERVICE_UNAVAILABLE', 'AI parser is not configured on this server. Set GEMINI_API_KEY in Vercel env to enable.');
   }
 
@@ -176,39 +166,73 @@ async function parseAIHandler(req: VercelRequest, res: VercelResponse) {
     return error(res, 400, 'VALIDATION_ERROR', 'Description too long (max 2000 chars).');
   }
 
+  // Direct REST call — works for both legacy AIzaSy* keys and the newer AQ.Ab* short-lived keys.
+  // The @google/generative-ai SDK rejects the new key format as of late 2026.
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+  const requestBody = {
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [{ role: 'user', parts: [{ text: description }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: RESPONSE_SCHEMA,
+      temperature: 0.2,
+      maxOutputTokens: 1024,
+    },
+  };
+
+  let geminiResponse: Response;
   try {
-    const model = client.getGenerativeModel({
-      model: 'gemini-1.5-flash-latest',
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: RESPONSE_SCHEMA,
-        temperature: 0.2,
-        maxOutputTokens: 1024,
+    geminiResponse = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-goog-api-key': apiKey,
       },
-      systemInstruction: SYSTEM_PROMPT,
+      body: JSON.stringify(requestBody),
     });
-
-    const result = await model.generateContent(description);
-    const text = result.response.text();
-
-    // Gemini's structured-output mode guarantees parseable JSON, but be defensive.
-    let parsed: ParsedFoodResponse;
-    try {
-      parsed = JSON.parse(text) as ParsedFoodResponse;
-    } catch {
-      return error(res, 502, 'BAD_UPSTREAM', 'AI returned non-JSON output. Try rephrasing your meal.');
-    }
-
-    // Empty-string notes -> null so the frontend can use truthy checks.
-    if (parsed.notes === '') parsed.notes = null;
-    return success(res, parsed);
   } catch (err) {
-    console.error('AI parse error:', err);
-    const msg = err instanceof Error ? err.message : 'AI request failed';
-    // Common failure modes: rate limit (429), invalid key (401), upstream issue.
-    if (msg.includes('429') || msg.toLowerCase().includes('rate')) {
+    console.error('Gemini fetch failed:', err);
+    return error(res, 502, 'BAD_UPSTREAM', 'Could not reach Gemini. Try again or fill in manually.');
+  }
+
+  if (!geminiResponse.ok) {
+    const text = await geminiResponse.text();
+    console.error('Gemini error response:', geminiResponse.status, text.slice(0, 500));
+    if (geminiResponse.status === 429) {
       return error(res, 429, 'RATE_LIMITED', 'AI parser is busy. Try again in a few seconds, or fill in manually.');
     }
-    return error(res, 502, 'BAD_UPSTREAM', msg);
+    if (geminiResponse.status === 401 || geminiResponse.status === 403) {
+      return error(res, 502, 'BAD_UPSTREAM', 'AI key was rejected. Tell the developer.');
+    }
+    return error(res, 502, 'BAD_UPSTREAM', `Gemini returned ${geminiResponse.status}.`);
   }
+
+  // Gemini's structured-output mode returns the JSON string in candidates[0].content.parts[0].text.
+  let body: {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
+    }>;
+  };
+  try {
+    body = (await geminiResponse.json()) as typeof body;
+  } catch {
+    return error(res, 502, 'BAD_UPSTREAM', 'AI returned non-JSON envelope.');
+  }
+
+  const text = body.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    return error(res, 502, 'BAD_UPSTREAM', 'AI returned empty response.');
+  }
+
+  let parsed: ParsedFoodResponse;
+  try {
+    parsed = JSON.parse(text) as ParsedFoodResponse;
+  } catch {
+    return error(res, 502, 'BAD_UPSTREAM', 'AI returned malformed JSON.');
+  }
+
+  // Empty-string notes -> null so the frontend can use truthy checks.
+  if (parsed.notes === '') parsed.notes = null;
+  return success(res, parsed);
 }
