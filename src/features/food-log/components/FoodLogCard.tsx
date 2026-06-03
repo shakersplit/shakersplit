@@ -49,6 +49,15 @@ export function FoodLogCard({ log, onDelete }: FoodLogCardProps) {
         </div>
       )}
 
+      {log.photo_url && (
+        <img
+          src={log.photo_url}
+          alt="Meal photo"
+          loading="lazy"
+          className="mt-3 w-full max-w-xs rounded-lg object-cover border border-border"
+        />
+      )}
+
       {log.notes && <p className="mt-2 text-xs italic text-muted-foreground">{log.notes}</p>}
     </div>
   );

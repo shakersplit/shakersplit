@@ -26,5 +26,6 @@ export interface CreateFoodLogInput {
   food_items: FoodItem[];
   total_calories?: number;
   total_protein_g?: number;
+  photo_url?: string;
   notes?: string;
 }

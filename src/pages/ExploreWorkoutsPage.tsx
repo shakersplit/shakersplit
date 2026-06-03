@@ -1,66 +1,29 @@
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Search, Dumbbell } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const WORKOUT_TYPES = ['All', 'GYM_PUSH', 'GYM_PULL', 'GYM_LEGS', 'GYM_FULL', 'RUN', 'SPORT'] as const;
 const DIFFICULTIES = ['All', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as const;
-
 type WorkoutType = (typeof WORKOUT_TYPES)[number];
 type Difficulty = (typeof DIFFICULTIES)[number];
 
-const SAMPLE_ROUTINES = [
-  {
-    id: '1',
-    title: 'Push Day A',
-    workout_type: 'GYM_PUSH',
-    difficulty: 'INTERMEDIATE',
-    description: 'Chest, shoulders, triceps — classic PPL push session.',
-    exercises: ['Bench Press', 'Overhead Press', 'Incline Dumbbell Press', 'Tricep Pushdown'],
-  },
-  {
-    id: '2',
-    title: 'Pull Day A',
-    workout_type: 'GYM_PULL',
-    difficulty: 'INTERMEDIATE',
-    description: 'Back and biceps focused pulling session.',
-    exercises: ['Deadlift', 'Pull-ups', 'Barbell Row', 'Face Pulls'],
-  },
-  {
-    id: '3',
-    title: '5K Easy Run',
-    workout_type: 'RUN',
-    difficulty: 'BEGINNER',
-    description: 'Zone 2 cardio at a comfortable conversational pace.',
-    exercises: ['5km at 6:00/km pace'],
-  },
-  {
-    id: '4',
-    title: 'Heavy Leg Day',
-    workout_type: 'GYM_LEGS',
-    difficulty: 'ADVANCED',
-    description: 'Squat-focused lower body session for strength athletes.',
-    exercises: ['Back Squat 5x5', 'Romanian Deadlift', 'Walking Lunges', 'Calf Raises'],
-  },
-  {
-    id: '5',
-    title: 'Beginner Full Body',
-    workout_type: 'GYM_FULL',
-    difficulty: 'BEGINNER',
-    description: 'Three days a week, hits everything — perfect for week 1.',
-    exercises: ['Goblet Squat', 'Push-up', 'Lat Pulldown', 'Plank'],
-  },
-];
+interface Routine {
+  id: string;
+  title: string;
+  description: string | null;
+  workout_type: string;
+  exercises: { name: string; sets?: number; reps?: number }[];
+  youtube_url: string | null;
+  difficulty: string;
+  is_public: boolean;
+  created_at: string;
+}
 
 const TYPE_LABELS: Record<string, string> = {
-  GYM_PUSH: 'Push',
-  GYM_PULL: 'Pull',
-  GYM_LEGS: 'Legs',
-  GYM_UPPER: 'Upper',
-  GYM_LOWER: 'Lower',
-  GYM_FULL: 'Full Body',
-  RUN: 'Run',
-  WALK: 'Walk',
-  SPORT: 'Sport',
-  OTHER: 'Other',
+  GYM_PUSH: 'Push', GYM_PULL: 'Pull', GYM_LEGS: 'Legs',
+  GYM_UPPER: 'Upper', GYM_LOWER: 'Lower', GYM_FULL: 'Full Body',
+  RUN: 'Run', WALK: 'Walk', SPORT: 'Sport', OTHER: 'Other',
 };
 
 const DIFF_COLORS: Record<string, string> = {
@@ -74,19 +37,31 @@ export function ExploreWorkoutsPage() {
   const [type, setType] = useState<WorkoutType>('All');
   const [difficulty, setDifficulty] = useState<Difficulty>('All');
 
+  const { data: routines = [], isLoading, error } = useQuery({
+    queryKey: ['workout-routines', 'public'],
+    queryFn: async (): Promise<Routine[]> => {
+      const { data, error } = await supabase
+        .from('workout_routines')
+        .select('*')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return SAMPLE_ROUTINES.filter((r) => {
+    return routines.filter((r) => {
       if (type !== 'All' && r.workout_type !== type) return false;
       if (difficulty !== 'All' && r.difficulty !== difficulty) return false;
       if (!q) return true;
       return (
         r.title.toLowerCase().includes(q) ||
-        r.description.toLowerCase().includes(q) ||
-        r.exercises.some((e) => e.toLowerCase().includes(q))
+        (r.description ?? '').toLowerCase().includes(q)
       );
     });
-  }, [search, type, difficulty]);
+  }, [routines, search, type, difficulty]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -138,17 +113,31 @@ export function ExploreWorkoutsPage() {
         ))}
       </div>
 
-      {filtered.length === 0 ? (
+      {error ? (
+        <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
+          Couldn't load routines: {(error as Error).message}
+        </div>
+      ) : isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-44 animate-pulse rounded-lg bg-secondary" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center">
           <Search className="mx-auto h-8 w-8 text-muted-foreground/50" />
-          <p className="mt-2 text-sm text-muted-foreground">No routines match your filters.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {routines.length === 0
+              ? 'No routines published yet. An admin can add them from the Admin Panel.'
+              : 'No routines match your filters.'}
+          </p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((routine) => (
-            <div
+            <article
               key={routine.id}
-              className="rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
+              className="rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors"
             >
               <div className="h-24 bg-gradient-to-br from-workout/20 to-workout/5 flex items-center justify-center">
                 <Dumbbell className="h-8 w-8 text-workout/40" />
@@ -160,22 +149,32 @@ export function ExploreWorkoutsPage() {
                     {routine.difficulty.toLowerCase()}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">{routine.description}</p>
+                {routine.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-2">{routine.description}</p>
+                )}
                 <div className="flex gap-2 flex-wrap">
                   <span className="rounded bg-workout/10 px-2 py-0.5 text-xs text-workout">
                     {TYPE_LABELS[routine.workout_type]}
                   </span>
-                  <span className="text-xs text-muted-foreground">{routine.exercises.length} exercises</span>
+                  <span className="text-xs text-muted-foreground">
+                    {(routine.exercises ?? []).length} exercises
+                  </span>
                 </div>
+                {routine.youtube_url && (
+                  <a
+                    href={routine.youtube_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-mental hover:underline inline-flex items-center gap-1"
+                  >
+                    ▶ Watch video
+                  </a>
+                )}
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}
-
-      <p className="text-center text-sm text-muted-foreground">
-        More routines coming soon. Admins can add routines via the API.
-      </p>
     </div>
   );
 }

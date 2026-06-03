@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Plus,
   Scale,
+  Heart,
   X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -42,7 +43,7 @@ export function DashboardPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['analytics', 'dashboard'],
-    queryFn: () => apiClient<ApiResponse<DashboardData>>('/analytics/dashboard'),
+    queryFn: () => apiClient<ApiResponse<DashboardData>>('/analytics', { params: { type: 'dashboard' } }),
     refetchOnWindowFocus: true,
   });
 
@@ -218,6 +219,7 @@ function QuickAddFAB() {
           <FabAction to="/app/log/workout" label="Workout" icon={<Dumbbell className="h-4 w-4" />} accent="bg-workout" onClick={() => setOpen(false)} />
           <FabAction to="/app/log/alcohol" label="Alcohol" icon={<Wine className="h-4 w-4" />} accent="bg-alcohol" onClick={() => setOpen(false)} />
           <FabAction to="/app/log/weight" label="Weight" icon={<Scale className="h-4 w-4" />} accent="bg-mental" onClick={() => setOpen(false)} />
+          <FabAction to="/app/log/mental" label="Mood" icon={<Heart className="h-4 w-4" />} accent="bg-mental" onClick={() => setOpen(false)} />
         </>
       )}
       <button

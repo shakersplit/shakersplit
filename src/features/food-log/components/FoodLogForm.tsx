@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useCreateFoodLog } from '../hooks/useCreateFoodLog';
 import { Plus, Trash2 } from 'lucide-react';
 import type { MealType } from '@/types';
+import { PhotoUploader } from '@/components/photo/PhotoUploader';
 
 const foodItemSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -37,6 +38,8 @@ const MEAL_TYPES: { value: MealType; label: string }[] = [
 
 export function FoodLogForm({ onSuccess }: FoodLogFormProps) {
   const [submitError, setSubmitError] = useState('');
+  // Photo URL is local state — gets attached to the create payload as photo_url.
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const createFoodLog = useCreateFoodLog();
 
   const {
@@ -62,8 +65,13 @@ export function FoodLogForm({ onSuccess }: FoodLogFormProps) {
   const onSubmit = async (data: FoodLogFormValues) => {
     setSubmitError('');
     try {
-      await createFoodLog.mutateAsync(data);
+      // Mutation type only knows the validated shape; merge in the photo manually.
+      await createFoodLog.mutateAsync({
+        ...data,
+        ...(photoUrl ? { photo_url: photoUrl } : {}),
+      } as typeof data & { photo_url?: string });
       reset();
+      setPhotoUrl(null);
       onSuccess?.();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create food log');
@@ -162,6 +170,14 @@ export function FoodLogForm({ onSuccess }: FoodLogFormProps) {
           placeholder="Any additional notes..."
           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
         />
+      </div>
+
+      {/* Photo upload — optional */}
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Photo <span className="text-muted-foreground/70 font-normal">(optional)</span>
+        </label>
+        <PhotoUploader scope="food" value={photoUrl} onChange={setPhotoUrl} />
       </div>
 
       {submitError && (

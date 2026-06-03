@@ -42,12 +42,12 @@ export function AnalyticsPage() {
 
   const { data: dashResp } = useQuery({
     queryKey: ['analytics', 'dashboard'],
-    queryFn: () => apiClient<ApiResponse<DashboardData>>('/analytics/dashboard'),
+    queryFn: () => apiClient<ApiResponse<DashboardData>>('/analytics', { params: { type: 'dashboard' } }),
   });
 
   const { data: trendsResp, isLoading: trendsLoading } = useQuery({
     queryKey: ['analytics', 'trends', days],
-    queryFn: () => apiClient<ApiResponse<{ days: TrendDay[] }>>('/analytics/trends', { params: { days } }),
+    queryFn: () => apiClient<ApiResponse<{ days: TrendDay[] }>>('/analytics', { params: { type: 'trends', days } }),
   });
 
   const dash = dashResp?.data;
