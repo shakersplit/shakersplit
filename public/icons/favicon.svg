@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ShakerSplit favicon — same as logo.svg, optimized for tiny browser tabs (16x16/32x32).
+  Bands are slightly thicker and gaps slightly tighter so the silhouette stays legible
+  when downscaled to 16px. Modern browsers render SVG favicons natively; old browsers
+  fall back to /favicon.ico (also generated).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#0F172A"/>
+  <rect x="15" y="14" width="38" height="10" rx="5" fill="#4CAF50"/>
+  <rect x="11" y="27" width="42" height="10" rx="5" fill="#FF9800"/>
+  <rect x="11" y="40" width="38" height="10" rx="5" fill="#9C27B0"/>
+</svg>

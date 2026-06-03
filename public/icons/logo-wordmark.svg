@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ShakerSplit horizontal wordmark — mark + "ShakerSplit" text. Use in headers, footers, the
+  branding panel of LoginPage. Designed at 800×200; the mark scales with the text height.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" fill="none" role="img" aria-label="ShakerSplit">
+  <defs>
+    <linearGradient id="wmGreen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#66BB6A"/>
+      <stop offset="100%" stop-color="#388E3C"/>
+    </linearGradient>
+    <linearGradient id="wmOrange" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFB74D"/>
+      <stop offset="100%" stop-color="#F57C00"/>
+    </linearGradient>
+    <linearGradient id="wmPurple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#BA68C8"/>
+      <stop offset="100%" stop-color="#7B1FA2"/>
+    </linearGradient>
+    <linearGradient id="wmText" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="100%" stop-color="#94A3B8"/>
+    </linearGradient>
+  </defs>
+  <!-- Mark, scaled to 160×160, vertically centered -->
+  <g transform="translate(20,20) scale(0.3125)">
+    <rect x="120" y="112" width="304" height="80" rx="40" fill="url(#wmGreen)"/>
+    <rect x="88" y="216" width="336" height="80" rx="40" fill="url(#wmOrange)"/>
+    <rect x="88" y="320" width="304" height="80" rx="40" fill="url(#wmPurple)"/>
+  </g>
+  <!-- Wordmark — Inter Bold-ish path-free fallback -->
+  <text x="200" y="120" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="84" font-weight="800" letter-spacing="-2" fill="url(#wmText)">Shaker<tspan fill="#4CAF50">Split</tspan></text>
+</svg>

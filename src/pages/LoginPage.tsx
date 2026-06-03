@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
+import { useAuth, UserAlreadyExistsError } from '@/hooks/useAuth';
+import { Eye, EyeOff, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { BrandMark } from '@/components/brand/BrandMark';
 
 function getPasswordStrength(pw: string): { score: number; label: string; color: string } {
   let score = 0;
@@ -35,6 +36,8 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
+  // When sign-up hits an already-existing email, we surface a friendly screen instead of a raw error.
+  const [emailAlreadyExists, setEmailAlreadyExists] = useState<string | null>(null);
 
   const { signInWithEmail, signUpWithEmail, signInWithGoogle, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -49,6 +52,7 @@ export function LoginPage() {
     setIsSignUp(toSignUp);
     setError('');
     setSignUpSuccess(false);
+    setEmailAlreadyExists(null);
     setPassword('');
     setConfirmPassword('');
   };
@@ -56,6 +60,7 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setEmailAlreadyExists(null);
 
     if (isSignUp) {
       if (!displayName.trim()) { setError('Please enter a display name.'); return; }
@@ -73,7 +78,18 @@ export function LoginPage() {
         navigate('/app');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
+      // Special case: email already registered → show the dedicated screen, not a raw error.
+      if (err instanceof UserAlreadyExistsError) {
+        setEmailAlreadyExists(err.email);
+      } else {
+        // Map Supabase's "Invalid login credentials" to something friendlier on sign-in.
+        const msg = err instanceof Error ? err.message : 'Authentication failed';
+        setError(
+          msg === 'Invalid login credentials'
+            ? "Email or password doesn't match. Try again or reset your password."
+            : msg
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -87,6 +103,55 @@ export function LoginPage() {
       setError(err instanceof Error ? err.message : 'Google sign-in failed');
     }
   };
+
+  // Email already exists — friendly recovery screen
+  if (emailAlreadyExists) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md space-y-6 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/15">
+            <AlertCircle className="h-9 w-9 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold">You already have an account</h2>
+            <p className="mt-2 text-muted-foreground text-sm">
+              <span className="font-medium text-foreground">{emailAlreadyExists}</span> is already
+              registered. Sign in instead, or reset your password if you've forgotten it.
+            </p>
+          </div>
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                setEmailAlreadyExists(null);
+                setIsSignUp(false);
+                setPassword('');
+                setConfirmPassword('');
+                setDisplayName('');
+              }}
+              className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Sign in to {emailAlreadyExists}
+            </button>
+            <Link
+              to={`/auth/forgot-password?email=${encodeURIComponent(emailAlreadyExists)}`}
+              className="block w-full rounded-xl border border-border py-2.5 text-sm font-medium hover:bg-secondary transition-colors"
+            >
+              Forgot your password?
+            </Link>
+          </div>
+          <button
+            onClick={() => {
+              setEmailAlreadyExists(null);
+              setEmail('');
+            }}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Use a different email
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Post sign-up confirmation screen
   if (signUpSuccess) {
@@ -136,7 +201,10 @@ export function LoginPage() {
     <div className="flex min-h-screen bg-background">
       {/* Left panel — branding (hidden on mobile) */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-card border-r border-border p-12">
-        <Link to="/" className="text-xl font-bold tracking-tight">ShakerSplit</Link>
+        <Link to="/" className="flex items-center gap-2.5">
+          <BrandMark className="h-8 w-8" withBackground />
+          <span className="text-xl font-extrabold tracking-tight">Shaker<span className="text-food">Split</span></span>
+        </Link>
         <div className="space-y-4">
           <h2 className="text-3xl font-bold leading-tight">
             Track food, gains,<br />
@@ -156,7 +224,10 @@ export function LoginPage() {
         <div className="w-full max-w-sm space-y-6">
           {/* Mobile logo */}
           <div className="lg:hidden text-center">
-            <Link to="/" className="text-2xl font-bold tracking-tight">ShakerSplit</Link>
+            <Link to="/" className="inline-flex items-center gap-2">
+              <BrandMark className="h-8 w-8" withBackground />
+              <span className="text-2xl font-extrabold tracking-tight">Shaker<span className="text-food">Split</span></span>
+            </Link>
           </div>
 
           <div>
@@ -221,7 +292,17 @@ export function LoginPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium">Password</label>
+                {!isSignUp && (
+                  <Link
+                    to="/auth/forgot-password"
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                )}
+              </div>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}

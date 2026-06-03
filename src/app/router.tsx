@@ -3,6 +3,8 @@ import { AuthGuard } from './auth-guard';
 import { RootLayout } from '@/components/layout/RootLayout';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { LogFoodPage } from '@/pages/LogFoodPage';
 import { LogWorkoutPage } from '@/pages/LogWorkoutPage';
@@ -16,6 +18,8 @@ import { ExploreWorkoutsPage } from '@/pages/ExploreWorkoutsPage';
 export const router = createBrowserRouter([
   { path: '/', element: <HomePage /> },
   { path: '/auth', element: <LoginPage /> },
+  { path: '/auth/forgot-password', element: <ForgotPasswordPage /> },
+  { path: '/auth/reset-password', element: <ResetPasswordPage /> },
   {
     path: '/app',
     element: (

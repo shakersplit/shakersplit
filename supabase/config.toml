@@ -163,10 +163,13 @@ site_url = "https://shakersplit.divyanshjha.in"
 additional_redirect_urls = [
   "https://shakersplit.divyanshjha.in/app",
   "https://shakersplit.divyanshjha.in/app/**",
+  "https://shakersplit.divyanshjha.in/auth/reset-password",
   "https://shakersplit.vercel.app/app",
   "https://shakersplit.vercel.app/app/**",
+  "https://shakersplit.vercel.app/auth/reset-password",
   "http://localhost:5173/app",
   "http://localhost:5173/app/**",
+  "http://localhost:5173/auth/reset-password",
   "http://127.0.0.1:3000",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
@@ -255,6 +258,11 @@ sender_name = "ShakerSplit"
 [auth.email.template.confirmation]
 subject = "Confirm your ShakerSplit account"
 content_path = "./supabase/templates/confirm-email.html"
+
+# Custom password recovery email template — sent by supabase.auth.resetPasswordForEmail
+[auth.email.template.recovery]
+subject = "Reset your ShakerSplit password"
+content_path = "./supabase/templates/recovery-email.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

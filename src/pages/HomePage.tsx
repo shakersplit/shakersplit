@@ -11,6 +11,7 @@ import {
   ArrowRight,
   CheckCircle2,
 } from 'lucide-react';
+import { BrandMark } from '@/components/brand/BrandMark';
 
 const FEATURES = [
   {
@@ -71,7 +72,10 @@ export function HomePage() {
       {/* Nav */}
       <header className="fixed top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <span className="text-lg font-bold tracking-tight">ShakerSplit</span>
+          <Link to="/" className="flex items-center gap-2.5">
+            <BrandMark className="h-7 w-7" withBackground />
+            <span className="text-lg font-extrabold tracking-tight">Shaker<span className="text-food">Split</span></span>
+          </Link>
           <div className="flex items-center gap-3">
             <Link
               to="/auth"

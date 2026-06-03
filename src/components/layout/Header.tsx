@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useThemeStore } from '@/stores/theme.store';
 import { Sun, Moon } from 'lucide-react';
 import { getGreeting } from '@/lib/utils';
+import { BrandMark } from '@/components/brand/BrandMark';
 
 export function Header() {
   const { user } = useAuth();
@@ -12,7 +13,10 @@ export function Header() {
   return (
     <header className="safe-top flex items-center justify-between border-b border-border px-4 py-3 md:px-6">
       <div className="flex items-center gap-3">
-        <h1 className="text-lg font-bold tracking-tight">ShakerSplit</h1>
+        <BrandMark className="h-7 w-7 shrink-0" withBackground />
+        <h1 className="text-lg font-extrabold tracking-tight">
+          Shaker<span className="text-food">Split</span>
+        </h1>
         <span className="hidden text-sm text-muted-foreground md:inline">
           {getGreeting()}, {displayName}
         </span>
