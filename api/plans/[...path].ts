@@ -35,8 +35,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Vercel passes the catch-all segments as req.query.path (array) when configured as
   // [...path].ts, OR as a single string when there's only one segment. Normalize.
+  // We also handle the synthetic "list" segment used by the rewrite from /api/plans → /api/plans/list.
   const rawPath = req.query.path;
-  const segments = Array.isArray(rawPath) ? rawPath : rawPath ? [rawPath] : [];
+  let segments = Array.isArray(rawPath) ? rawPath : rawPath ? [rawPath] : [];
+  if (segments.length === 1 && segments[0] === 'list') segments = [];
   const method = req.method?.toUpperCase();
 
   try {
