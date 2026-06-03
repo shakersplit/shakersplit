@@ -41,19 +41,26 @@ export async function createPlanEntry(planId: string, data: CreatePlanEntryInput
   });
 }
 
+/**
+ * NOTE: entry update/delete share the /plans/:planId/entries route with a ?entryId= query
+ * because Vercel's Hobby plan caps deployments at 12 serverless functions and the deeper
+ * /entries/:entryId.ts file would put us over.
+ */
 export async function updatePlanEntry(
   planId: string,
   entryId: string,
   data: Partial<CreatePlanEntryInput>,
 ) {
-  return apiClient<ApiResponse<PlanEntry>>(`/plans/${planId}/entries/${entryId}`, {
+  return apiClient<ApiResponse<PlanEntry>>(`/plans/${planId}/entries`, {
     method: 'PUT',
+    params: { entryId },
     body: data,
   });
 }
 
 export async function deletePlanEntry(planId: string, entryId: string) {
-  return apiClient<ApiResponse<{ deleted: true }>>(`/plans/${planId}/entries/${entryId}`, {
+  return apiClient<ApiResponse<{ deleted: true }>>(`/plans/${planId}/entries`, {
     method: 'DELETE',
+    params: { entryId },
   });
 }

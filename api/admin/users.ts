@@ -1,12 +1,11 @@
 /**
- * Admin catch-all — admin-only routes consolidated under /api/admin/*.
- * All routes pass through requireAdmin middleware, so non-admins get 403.
+ * Admin: users management. Single file with query-param dispatch:
+ *   GET    /api/admin/users                  list every user with per-user log counts
+ *   PATCH  /api/admin/users?id=:id           change role / display_name
+ *   DELETE /api/admin/users?id=:id           hard-delete user + cascade
  *
- * Path matrix:
- *   GET    /api/admin/stats           → system-wide aggregate counts
- *   GET    /api/admin/users           → list every user (with per-user log counts)
- *   PATCH  /api/admin/users/:id       → change role / display_name
- *   DELETE /api/admin/users/:id       → hard-delete user + cascade
+ * All routes pass through requireAdmin so non-admins get 403. Self-protection: an admin
+ * cannot demote or delete themselves to avoid lockout.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { cors } from '../_lib/middleware/cors.middleware';
@@ -16,70 +15,24 @@ import { success, error } from '../_lib/utils/response.util';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (cors(req, res)) return;
-
   const admin = await requireAdmin(req, res);
   if (!admin) return;
 
-  const rawPath = req.query.path;
-  const segments = Array.isArray(rawPath) ? rawPath : rawPath ? [rawPath] : [];
+  const targetId = req.query.id as string | undefined;
   const method = req.method?.toUpperCase();
 
   try {
-    // /api/admin/stats
-    if (segments.length === 1 && segments[0] === 'stats' && method === 'GET') {
-      return await handleStats(res);
-    }
-
-    // /api/admin/users
-    if (segments.length === 1 && segments[0] === 'users' && method === 'GET') {
-      return await handleListUsers(res);
-    }
-
-    // /api/admin/users/:id
-    if (segments.length === 2 && segments[0] === 'users') {
-      const targetId = segments[1]!;
-      if (method === 'PATCH') return await handlePatchUser(req, res, admin.id, targetId);
-      if (method === 'DELETE') return await handleDeleteUser(res, admin.id, targetId);
-    }
-
-    return error(res, 404, 'NOT_FOUND', `No admin route for ${method} /api/admin/${segments.join('/')}`);
+    if (method === 'GET' && !targetId) return await handleList(res);
+    if (method === 'PATCH' && targetId) return await handlePatch(req, res, admin.id, targetId);
+    if (method === 'DELETE' && targetId) return await handleDelete(res, admin.id, targetId);
+    return error(res, 400, 'VALIDATION_ERROR', `Unsupported method/params: ${method}${targetId ? ' (id given)' : ''}`);
   } catch (err) {
-    console.error('Unhandled /api/admin/* error:', err);
+    console.error('admin/users error:', err);
     return error(res, 500, 'INTERNAL_ERROR', 'An unexpected error occurred');
   }
 }
 
-async function handleStats(res: VercelResponse) {
-  const [users, food, workout, alcohol, weight, plans] = await Promise.all([
-    supabaseAdmin.from('users').select('id, role, created_at', { count: 'exact', head: false }),
-    supabaseAdmin.from('food_logs').select('id', { count: 'exact', head: true }),
-    supabaseAdmin.from('workout_logs').select('id', { count: 'exact', head: true }),
-    supabaseAdmin.from('alcohol_logs').select('id', { count: 'exact', head: true }),
-    supabaseAdmin.from('weight_logs').select('id', { count: 'exact', head: true }),
-    supabaseAdmin.from('weekly_plans').select('id', { count: 'exact', head: true }),
-  ]);
-
-  if (users.error) return error(res, 500, 'INTERNAL_ERROR', users.error.message);
-
-  const totalUsers = users.count ?? 0;
-  const adminUsers = (users.data ?? []).filter((u) => u.role === 'ADMIN').length;
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const newSignups7d = (users.data ?? []).filter((u) => new Date(u.created_at) >= sevenDaysAgo).length;
-
-  return success(res, {
-    total_users: totalUsers,
-    admin_users: adminUsers,
-    new_signups_7d: newSignups7d,
-    total_food_logs: food.count ?? 0,
-    total_workout_logs: workout.count ?? 0,
-    total_alcohol_logs: alcohol.count ?? 0,
-    total_weight_logs: weight.count ?? 0,
-    total_plans: plans.count ?? 0,
-  });
-}
-
-async function handleListUsers(res: VercelResponse) {
+async function handleList(res: VercelResponse) {
   const { data: users, error: dbErr } = await supabaseAdmin
     .from('users')
     .select('id, email, display_name, role, created_at, height_cm, weight_kg')
@@ -101,6 +54,7 @@ async function handleListUsers(res: VercelResponse) {
     (rows ?? []).forEach((r) => m.set(r.user_id, (m.get(r.user_id) ?? 0) + 1));
     return m;
   };
+
   const foodMap = tally(foodCounts.data);
   const workoutMap = tally(workoutCounts.data);
   const alcoholMap = tally(alcoholCounts.data);
@@ -115,7 +69,7 @@ async function handleListUsers(res: VercelResponse) {
   return success(res, enriched);
 }
 
-async function handlePatchUser(req: VercelRequest, res: VercelResponse, adminId: string, targetId: string) {
+async function handlePatch(req: VercelRequest, res: VercelResponse, adminId: string, targetId: string) {
   if (targetId === adminId) {
     return error(res, 400, 'VALIDATION_ERROR', "You can't modify your own admin role.");
   }
@@ -138,7 +92,7 @@ async function handlePatchUser(req: VercelRequest, res: VercelResponse, adminId:
   return success(res, data);
 }
 
-async function handleDeleteUser(res: VercelResponse, adminId: string, targetId: string) {
+async function handleDelete(res: VercelResponse, adminId: string, targetId: string) {
   if (targetId === adminId) {
     return error(res, 400, 'VALIDATION_ERROR', "You can't delete your own account from the admin panel. Use Profile → Delete account.");
   }

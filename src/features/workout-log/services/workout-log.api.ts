@@ -2,6 +2,8 @@ import { apiClient } from '@/lib/api-client';
 import type { ApiResponse, PaginatedResponse } from '@/types';
 import type { WorkoutLog, CreateWorkoutLogInput } from '../types/workout-log.types';
 
+/** Single /workout-logs route dispatches by ?id= for detail/update/delete (Hobby plan limit). */
+
 export async function getWorkoutLogs(params?: {
   page?: number;
   limit?: number;
@@ -20,14 +22,16 @@ export async function createWorkoutLog(data: CreateWorkoutLogInput) {
 }
 
 export async function updateWorkoutLog(id: string, data: CreateWorkoutLogInput) {
-  return apiClient<ApiResponse<WorkoutLog>>(`/workout-logs/${id}`, {
+  return apiClient<ApiResponse<WorkoutLog>>('/workout-logs', {
     method: 'PUT',
+    params: { id },
     body: data,
   });
 }
 
 export async function deleteWorkoutLog(id: string) {
-  return apiClient<ApiResponse<{ deleted: true }>>(`/workout-logs/${id}`, {
+  return apiClient<ApiResponse<{ deleted: true }>>('/workout-logs', {
     method: 'DELETE',
+    params: { id },
   });
 }

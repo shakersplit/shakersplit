@@ -57,7 +57,7 @@ export function AdminPage() {
 
   const promote = useMutation({
     mutationFn: ({ id, role }: { id: string; role: 'USER' | 'ADMIN' }) =>
-      apiClient(`/admin/users/${id}`, { method: 'PATCH', body: { role } }),
+      apiClient('/admin/users', { method: 'PATCH', params: { id }, body: { role } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] });
@@ -65,7 +65,7 @@ export function AdminPage() {
   });
 
   const removeUser = useMutation({
-    mutationFn: (id: string) => apiClient(`/admin/users/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiClient('/admin/users', { method: 'DELETE', params: { id } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] });

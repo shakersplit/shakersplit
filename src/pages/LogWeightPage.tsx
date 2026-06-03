@@ -41,7 +41,7 @@ export function LogWeightPage() {
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => apiClient(`/weight-logs/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiClient('/weight-logs', { method: 'DELETE', params: { id } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['weight-logs'] }),
   });
 
