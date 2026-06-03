@@ -148,8 +148,9 @@ export const planRepository = {
       .eq('id', entryId)
       .single();
     if (error || !data) return { data: null, error };
-    // @ts-expect-error — Supabase typing for the joined object is `unknown[]` in some versions
-    if (data.weekly_plans?.user_id !== userId) return { data: null, error: new Error('Forbidden') };
+    // Supabase types the joined relation as `unknown`; we know the shape because we requested it.
+    const ownerId = (data as { weekly_plans?: { user_id?: string } }).weekly_plans?.user_id;
+    if (ownerId !== userId) return { data: null, error: new Error('Forbidden') };
     return { data, error: null };
   },
 };

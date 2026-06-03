@@ -1,7 +1,7 @@
-import { createHandler } from './_lib/factories/handler.factory';
-import { requireAdmin } from './_lib/middleware/auth.middleware';
-import { supabaseAdmin } from './_lib/config/supabase.config';
-import { success, error } from './_lib/utils/response.util';
+import { createHandler } from '../_lib/factories/handler.factory';
+import { requireAdmin } from '../_lib/middleware/auth.middleware';
+import { supabaseAdmin } from '../_lib/config/supabase.config';
+import { success, error } from '../_lib/utils/response.util';
 
 /**
  * Admin-only: list every user in the system, with summary counts of their logs.
