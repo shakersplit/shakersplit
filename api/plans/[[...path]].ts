@@ -14,18 +14,18 @@
  *   DELETE /api/plans/:id/entries/:entryId     → delete entry
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { cors } from './_lib/middleware/cors.middleware';
-import { verifyAuth } from './_lib/middleware/auth.middleware';
-import { validateBody } from './_lib/middleware/validate.middleware';
+import { cors } from '../_lib/middleware/cors.middleware';
+import { verifyAuth } from '../_lib/middleware/auth.middleware';
+import { validateBody } from '../_lib/middleware/validate.middleware';
 import {
   createPlanSchema,
   updatePlanSchema,
   createPlanEntrySchema,
   updatePlanEntrySchema,
-} from './_lib/validators/plan.validator';
-import { planRepository } from './_lib/repositories/plan.repository';
-import { parsePagination } from './_lib/utils/pagination.util';
-import { success, paginated, error } from './_lib/utils/response.util';
+} from '../_lib/validators/plan.validator';
+import { planRepository } from '../_lib/repositories/plan.repository';
+import { parsePagination } from '../_lib/utils/pagination.util';
+import { success, paginated, error } from '../_lib/utils/response.util';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (cors(req, res)) return;
