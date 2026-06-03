@@ -416,6 +416,21 @@ export function LoginPage() {
               {isSignUp ? 'Sign in' : 'Sign up free'}
             </button>
           </p>
+
+          {/* Legal — required for Google OAuth verification + general good practice */}
+          {isSignUp && (
+            <p className="text-center text-xs text-muted-foreground/80 leading-relaxed">
+              By creating an account you agree to our{' '}
+              <Link to="/terms" className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link to="/privacy" className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          )}
         </div>
       </div>
     </div>

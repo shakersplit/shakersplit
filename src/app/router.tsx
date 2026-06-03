@@ -5,6 +5,8 @@ import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
+import { PrivacyPage } from '@/pages/PrivacyPage';
+import { TermsPage } from '@/pages/TermsPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { LogFoodPage } from '@/pages/LogFoodPage';
 import { LogWorkoutPage } from '@/pages/LogWorkoutPage';
@@ -20,6 +22,8 @@ export const router = createBrowserRouter([
   { path: '/auth', element: <LoginPage /> },
   { path: '/auth/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/auth/reset-password', element: <ResetPasswordPage /> },
+  { path: '/privacy', element: <PrivacyPage /> },
+  { path: '/terms', element: <TermsPage /> },
   {
     path: '/app',
     element: (

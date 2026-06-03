@@ -211,8 +211,34 @@ export function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground">
-        <p>ShakerSplit · Built with React, Supabase &amp; Vercel · $0/month</p>
+      <footer className="border-t border-border py-10">
+        <div className="mx-auto max-w-6xl px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <BrandMark className="h-5 w-5" withBackground />
+            <span className="text-sm font-bold tracking-tight">
+              Shaker<span className="text-food">Split</span>
+            </span>
+            <span className="text-xs text-muted-foreground ml-2">© 2026 · Free forever</span>
+          </div>
+          <nav className="flex items-center gap-5 text-xs text-muted-foreground">
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <a
+              href="https://github.com/shakersplit/shakersplit"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
+              GitHub
+            </a>
+            <a
+              href="mailto:jhadivyansh2003@gmail.com"
+              className="hover:text-foreground transition-colors"
+            >
+              Contact
+            </a>
+          </nav>
+        </div>
       </footer>
     </div>
   );
