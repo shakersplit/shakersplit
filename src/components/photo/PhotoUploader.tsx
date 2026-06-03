@@ -192,7 +192,15 @@ async function resizeImage(file: File, maxDim: number, quality: number): Promise
   if (!ctx) throw new Error('Canvas 2D context unavailable.');
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(bitmap as CanvasImageSource, 0, 0, dstW, dstH);
+  try {
+    ctx.drawImage(bitmap as CanvasImageSource, 0, 0, dstW, dstH);
+  } finally {
+    // Free GPU/canvas memory held by the ImageBitmap. <img> elements GC themselves so we
+    // only need this branch when we got a real ImageBitmap from createImageBitmap().
+    if ('close' in bitmap && typeof (bitmap as ImageBitmap).close === 'function') {
+      (bitmap as ImageBitmap).close();
+    }
+  }
 
   // toBlob returns null if encoding fails — wrap for typed safety.
   return new Promise<Blob>((resolve, reject) => {

@@ -76,7 +76,10 @@ export function LogMentalHealthPage() {
     const t = tagInput.trim();
     if (!t) return;
     if (tags.includes(t)) { setTagInput(''); return; }
-    if (tags.length >= 20) return;
+    if (tags.length >= 20) {
+      setError('Maximum 20 tags per entry.');
+      return;
+    }
     setTags([...tags, t]);
     setTagInput('');
   };
@@ -125,7 +128,7 @@ export function LogMentalHealthPage() {
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">How are you feeling?</label>
               <span className="text-xs text-muted-foreground">
-                {moodScore}/10 · {MOOD_DESCRIPTORS[moodScore]}
+                {moodScore}/10 · {MOOD_DESCRIPTORS[moodScore] ?? 'Unknown'}
               </span>
             </div>
             <input
@@ -280,7 +283,7 @@ export function LogMentalHealthPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">
-                          {log.mood_score}/10 · {MOOD_DESCRIPTORS[log.mood_score]}
+                          {log.mood_score}/10 · {MOOD_DESCRIPTORS[log.mood_score] ?? 'Unknown'}
                         </p>
                         <p className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                           <span>{formatDate(log.logged_at)}</span>

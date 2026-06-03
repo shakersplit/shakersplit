@@ -7,6 +7,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // 'injectManifest' lets us write our own service worker (for Web Push handling)
+      // while Workbox still injects the precache manifest list. Auto-update flow is handled
+      // by our registerType: 'prompt' + the UpdateToast component.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'prompt',
       includeAssets: ['favicon.ico', 'icons/*.svg', 'icons/*.png'],
       manifest: {
@@ -51,18 +57,13 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 300 },
-            },
-          },
-        ],
+      },
+      devOptions: {
+        // Enable SW in dev so we can test push registration locally
+        enabled: false,
+        type: 'module',
       },
     }),
   ],

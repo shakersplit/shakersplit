@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeStore } from '@/stores/theme.store';
 import { useUserProfile, useIsAdmin } from '@/hooks/useRole';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { supabase } from '@/lib/supabase';
-import { User, LogOut, Moon, Sun, Trash2, ShieldCheck, Mail } from 'lucide-react';
+import { User, LogOut, Moon, Sun, Trash2, ShieldCheck, Mail, Bell, BellOff, Smartphone, AlertCircle } from 'lucide-react';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -122,6 +123,9 @@ export function ProfilePage() {
         </button>
       </div>
 
+      {/* Notifications */}
+      <NotificationSettings />
+
       {/* Danger zone */}
       <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5 space-y-3">
         <div>
@@ -177,6 +181,128 @@ export function ProfilePage() {
           <div className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
         )}
       </div>
+    </div>
+  );
+}
+
+function NotificationSettings() {
+  const { permission, isSubscribed, devices, loading, error, subscribe, unsubscribe, sendTest } =
+    usePushNotifications();
+  const [testStatus, setTestStatus] = useState<string | null>(null);
+
+  // Helper: friendly device label from a UA string.
+  const labelDevice = (ua: string | null): string => {
+    if (!ua) return 'Unknown device';
+    if (/iP(hone|od)/.test(ua)) return 'iPhone';
+    if (/iPad/.test(ua)) return 'iPad';
+    if (/Android/.test(ua)) return /Mobile/.test(ua) ? 'Android phone' : 'Android tablet';
+    if (/Macintosh/.test(ua)) return 'Mac';
+    if (/Windows/.test(ua)) return 'Windows';
+    return 'Browser';
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <Bell className="h-4 w-4 text-mental" />
+        <h3 className="text-sm font-semibold">Notifications</h3>
+      </div>
+
+      {permission === 'unsupported' && (
+        <p className="rounded-lg bg-secondary/50 px-3 py-2 text-xs text-muted-foreground">
+          Push notifications aren't supported by this browser.
+        </p>
+      )}
+
+      {permission === 'unsupported-ios' && (
+        <div className="rounded-lg border border-mental/30 bg-mental/5 px-3 py-3 text-xs space-y-2">
+          <p className="flex items-start gap-2 text-foreground">
+            <AlertCircle className="h-3.5 w-3.5 mt-0.5 text-mental shrink-0" />
+            <span>
+              On iPhone, push notifications only work after you <strong>add ShakerSplit to your home screen</strong> in Safari and open it from there.
+            </span>
+          </p>
+          <p className="text-muted-foreground">
+            Tap the share button in Safari → "Add to Home Screen". Then open the app from the home screen icon and come back here.
+          </p>
+        </div>
+      )}
+
+      {permission === 'denied' && (
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          Notifications are blocked. To enable, go to your browser settings → site permissions → allow notifications for this site.
+        </p>
+      )}
+
+      {(permission === 'default' || permission === 'granted') && (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">
+                {isSubscribed ? 'You\'ll get pushes on this device' : 'Get notified about activity'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isSubscribed
+                  ? 'Friend requests, accepted requests, weekly recaps.'
+                  : 'Friend requests, accepted requests, weekly recaps. You can turn this off anytime.'}
+              </p>
+            </div>
+            {isSubscribed ? (
+              <button
+                onClick={unsubscribe}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary disabled:opacity-50"
+              >
+                <BellOff className="h-3.5 w-3.5" /> Turn off
+              </button>
+            ) : (
+              <button
+                onClick={subscribe}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                <Bell className="h-3.5 w-3.5" /> {loading ? 'Setting up…' : 'Turn on'}
+              </button>
+            )}
+          </div>
+
+          {isSubscribed && (
+            <button
+              onClick={async () => {
+                const ok = await sendTest();
+                setTestStatus(ok ? 'Test sent — check your notifications.' : 'Test failed.');
+                setTimeout(() => setTestStatus(null), 5000);
+              }}
+              className="text-xs text-mental hover:underline"
+            >
+              Send a test notification
+            </button>
+          )}
+          {testStatus && <p className="text-xs text-muted-foreground">{testStatus}</p>}
+
+          {devices.length > 0 && (
+            <div className="space-y-1.5 pt-2 border-t border-border">
+              <p className="text-xs font-medium text-muted-foreground">Devices receiving pushes</p>
+              <ul className="space-y-1">
+                {devices.map((d) => (
+                  <li key={d.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Smartphone className="h-3 w-3" />
+                    <span>{labelDevice(d.user_agent)}</span>
+                    <span className="text-muted-foreground/60">·</span>
+                    <span className="text-muted-foreground/60">
+                      {new Date(d.last_used_at).toLocaleDateString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+
+      {error && (
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>
+      )}
     </div>
   );
 }

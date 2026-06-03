@@ -20,6 +20,7 @@ import { cors } from './_lib/middleware/cors.middleware';
 import { requireAdmin } from './_lib/middleware/auth.middleware';
 import { supabaseAdmin } from './_lib/config/supabase.config';
 import { success, error } from './_lib/utils/response.util';
+import { sendPushToUsers } from './_lib/utils/push.util';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (cors(req, res)) return;
@@ -52,6 +53,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (method === 'PATCH' && id) return await handleUpdateRoutine(req, res, id);
       if (method === 'DELETE' && id) return await handleDeleteRoutine(res, id);
     }
+
+    // Push broadcast — sends a notification to every user with at least one subscription.
+    if (resource === 'push' && method === 'POST') return await handlePushBroadcast(req, res);
 
     return error(res, 400, 'VALIDATION_ERROR', `Unsupported: resource=${resource} method=${method} ${id ? 'with id' : 'without id'}`);
   } catch (err) {
@@ -274,4 +278,36 @@ async function handleDeleteRoutine(res: VercelResponse, id: string) {
   const { error: dbErr } = await supabaseAdmin.from('workout_routines').delete().eq('id', id);
   if (dbErr) return error(res, 500, 'INTERNAL_ERROR', dbErr.message);
   return success(res, { deleted: true });
+}
+
+// ── push broadcast ──────────────────────────────────────────────────────────
+async function handlePushBroadcast(req: VercelRequest, res: VercelResponse) {
+  const { title, body, url, tag } = (req.body ?? {}) as {
+    title?: string;
+    body?: string;
+    url?: string;
+    tag?: string;
+  };
+  if (!title?.trim() || !body?.trim()) {
+    return error(res, 400, 'VALIDATION_ERROR', 'title and body required');
+  }
+
+  // Get every user_id with at least one push subscription.
+  const { data: subs, error: dbErr } = await supabaseAdmin
+    .from('push_subscriptions')
+    .select('user_id');
+  if (dbErr) return error(res, 500, 'INTERNAL_ERROR', dbErr.message);
+
+  const uniqueUsers = Array.from(new Set((subs ?? []).map((s) => s.user_id)));
+  if (uniqueUsers.length === 0) {
+    return success(res, { sent: 0, recipients: 0 });
+  }
+
+  const sent = await sendPushToUsers(uniqueUsers, {
+    title: title.trim(),
+    body: body.trim(),
+    url: url?.trim() || '/app',
+    tag: tag?.trim() || 'broadcast',
+  });
+  return success(res, { sent, recipients: uniqueUsers.length });
 }

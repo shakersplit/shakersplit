@@ -18,6 +18,7 @@ import {
   Edit3,
   X,
   ChefHat,
+  Bell,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -77,7 +78,7 @@ interface Routine {
   created_at: string;
 }
 
-type Tab = 'overview' | 'users' | 'recipes' | 'routines';
+type Tab = 'overview' | 'users' | 'recipes' | 'routines' | 'broadcast';
 
 export function AdminPage() {
   const [tab, setTab] = useState<Tab>('overview');
@@ -93,17 +94,19 @@ export function AdminPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
         <TabButton active={tab === 'overview'} onClick={() => setTab('overview')}>Overview</TabButton>
         <TabButton active={tab === 'users'} onClick={() => setTab('users')}>Users</TabButton>
         <TabButton active={tab === 'recipes'} onClick={() => setTab('recipes')}>Recipes</TabButton>
         <TabButton active={tab === 'routines'} onClick={() => setTab('routines')}>Routines</TabButton>
+        <TabButton active={tab === 'broadcast'} onClick={() => setTab('broadcast')}>Broadcast</TabButton>
       </div>
 
       {tab === 'overview' && <OverviewTab />}
       {tab === 'users' && <UsersTab />}
       {tab === 'recipes' && <RecipesTab />}
       {tab === 'routines' && <RoutinesTab />}
+      {tab === 'broadcast' && <BroadcastTab />}
     </div>
   );
 }
@@ -788,6 +791,111 @@ function StatCard({
       <p className={`mt-1 text-2xl font-bold ${accent ?? ''}`}>
         {loading ? <span className="inline-block h-7 w-12 animate-pulse rounded bg-secondary" /> : (value ?? 0).toLocaleString()}
       </p>
+    </div>
+  );
+}
+
+// ── Broadcast tab ───────────────────────────────────────────────────────────
+function BroadcastTab() {
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [url, setUrl] = useState('/app');
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const send = useMutation({
+    mutationFn: () =>
+      apiClient<ApiResponse<{ sent: number; recipients: number }>>('/admin', {
+        method: 'POST',
+        params: { resource: 'push' },
+        body: { title: title.trim(), body: body.trim(), url: url.trim() || '/app' },
+      }),
+    onSuccess: (res) => {
+      setResult({
+        ok: true,
+        text: `Sent to ${res.data.sent} device${res.data.sent === 1 ? '' : 's'} across ${res.data.recipients} user${res.data.recipients === 1 ? '' : 's'}.`,
+      });
+      setTitle('');
+      setBody('');
+    },
+    onError: (err: Error) => setResult({ ok: false, text: err.message }),
+  });
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div className="flex items-center gap-2">
+        <Bell className="h-4 w-4 text-mental" />
+        <h3 className="text-base font-semibold">Send a push notification to all users</h3>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Goes out to every device with notifications enabled. Use sparingly — this is the kind of thing that gets people to mute the app.
+      </p>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!title.trim() || !body.trim()) {
+            setResult({ ok: false, text: 'Title and body are required.' });
+            return;
+          }
+          if (window.confirm(`Send "${title}" to all users with notifications enabled?`)) {
+            send.mutate();
+          }
+        }}
+        className="rounded-lg border border-border bg-card p-5 space-y-4"
+      >
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Title</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={50}
+            placeholder="ShakerSplit just got better"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <p className="mt-1 text-[10px] text-muted-foreground">{title.length}/50</p>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Body</label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={3}
+            maxLength={200}
+            placeholder="We added mental health logging and friend requests. Try them out."
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          />
+          <p className="mt-1 text-[10px] text-muted-foreground">{body.length}/200</p>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            Deep link <span className="text-muted-foreground/60">(opens when tapped)</span>
+          </label>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="/app/log/mental"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={send.isPending || !title.trim() || !body.trim()}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {send.isPending ? 'Sending…' : 'Send to all users'}
+        </button>
+      </form>
+
+      {result && (
+        <div
+          className={`rounded-lg px-3 py-2 text-sm ${
+            result.ok ? 'bg-food/10 text-food' : 'bg-destructive/10 text-destructive'
+          }`}
+        >
+          {result.text}
+        </div>
+      )}
     </div>
   );
 }

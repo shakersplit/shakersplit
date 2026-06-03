@@ -175,12 +175,12 @@ BEGIN
     IF v_last_drink IS NULL THEN
       RETURN 0;
     END IF;
-    v_streak := (v_today - v_last_drink)::INT;
-    -- include today
-    RETURN v_streak + 1;
+    -- Days from first activity to today, inclusive of both endpoints when
+    -- the user hasn't drunk in between. Symmetric with the drank case below.
+    RETURN GREATEST(0, (v_today - v_last_drink)::INT);
   END IF;
 
-  -- Days since last drink, exclusive of the day they drank.
+  -- Days since last drink. The day they drank doesn't count as sober.
   v_streak := GREATEST(0, (v_today - v_last_drink)::INT);
   RETURN v_streak;
 END;
