@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AuthGuard } from './auth-guard';
+import { AdminGuard } from './admin-guard';
 import { RootLayout } from '@/components/layout/RootLayout';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -11,11 +12,13 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { LogFoodPage } from '@/pages/LogFoodPage';
 import { LogWorkoutPage } from '@/pages/LogWorkoutPage';
 import { LogAlcoholPage } from '@/pages/LogAlcoholPage';
+import { LogWeightPage } from '@/pages/LogWeightPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { PlanWeeklyPage } from '@/pages/PlanWeeklyPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { ExploreRecipesPage } from '@/pages/ExploreRecipesPage';
 import { ExploreWorkoutsPage } from '@/pages/ExploreWorkoutsPage';
+import { AdminPage } from '@/pages/AdminPage';
 
 export const router = createBrowserRouter([
   { path: '/', element: <HomePage /> },
@@ -38,10 +41,19 @@ export const router = createBrowserRouter([
       { path: 'log/food', element: <LogFoodPage /> },
       { path: 'log/workout', element: <LogWorkoutPage /> },
       { path: 'log/alcohol', element: <LogAlcoholPage /> },
+      { path: 'log/weight', element: <LogWeightPage /> },
       { path: 'explore/recipes', element: <ExploreRecipesPage /> },
       { path: 'explore/workouts', element: <ExploreWorkoutsPage /> },
       { path: 'analytics', element: <AnalyticsPage /> },
       { path: 'profile', element: <ProfilePage /> },
+      {
+        path: 'admin',
+        element: (
+          <AdminGuard>
+            <AdminPage />
+          </AdminGuard>
+        ),
+      },
       { path: '*', element: <Navigate to="/app" replace /> },
     ],
   },

@@ -1,7 +1,11 @@
+import { useState, useMemo } from 'react';
 import { Search, Dumbbell } from 'lucide-react';
 
-const WORKOUT_TYPES = ['All', 'GYM_PUSH', 'GYM_PULL', 'GYM_LEGS', 'GYM_FULL', 'RUN', 'SPORT'];
-const DIFFICULTIES = ['All', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
+const WORKOUT_TYPES = ['All', 'GYM_PUSH', 'GYM_PULL', 'GYM_LEGS', 'GYM_FULL', 'RUN', 'SPORT'] as const;
+const DIFFICULTIES = ['All', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as const;
+
+type WorkoutType = (typeof WORKOUT_TYPES)[number];
+type Difficulty = (typeof DIFFICULTIES)[number];
 
 const SAMPLE_ROUTINES = [
   {
@@ -28,6 +32,22 @@ const SAMPLE_ROUTINES = [
     description: 'Zone 2 cardio at a comfortable conversational pace.',
     exercises: ['5km at 6:00/km pace'],
   },
+  {
+    id: '4',
+    title: 'Heavy Leg Day',
+    workout_type: 'GYM_LEGS',
+    difficulty: 'ADVANCED',
+    description: 'Squat-focused lower body session for strength athletes.',
+    exercises: ['Back Squat 5x5', 'Romanian Deadlift', 'Walking Lunges', 'Calf Raises'],
+  },
+  {
+    id: '5',
+    title: 'Beginner Full Body',
+    workout_type: 'GYM_FULL',
+    difficulty: 'BEGINNER',
+    description: 'Three days a week, hits everything — perfect for week 1.',
+    exercises: ['Goblet Squat', 'Push-up', 'Lat Pulldown', 'Plank'],
+  },
 ];
 
 const TYPE_LABELS: Record<string, string> = {
@@ -50,6 +70,24 @@ const DIFF_COLORS: Record<string, string> = {
 };
 
 export function ExploreWorkoutsPage() {
+  const [search, setSearch] = useState('');
+  const [type, setType] = useState<WorkoutType>('All');
+  const [difficulty, setDifficulty] = useState<Difficulty>('All');
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return SAMPLE_ROUTINES.filter((r) => {
+      if (type !== 'All' && r.workout_type !== type) return false;
+      if (difficulty !== 'All' && r.difficulty !== difficulty) return false;
+      if (!q) return true;
+      return (
+        r.title.toLowerCase().includes(q) ||
+        r.description.toLowerCase().includes(q) ||
+        r.exercises.some((e) => e.toLowerCase().includes(q))
+      );
+    });
+  }, [search, type, difficulty]);
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center gap-2">
@@ -58,8 +96,11 @@ export function ExploreWorkoutsPage() {
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search routines..."
           className="w-full rounded-lg border border-input bg-background pl-9 pr-3 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
@@ -69,7 +110,12 @@ export function ExploreWorkoutsPage() {
         {WORKOUT_TYPES.map((t) => (
           <button
             key={t}
-            className="shrink-0 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors first:bg-secondary first:text-foreground"
+            onClick={() => setType(t)}
+            className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              type === t
+                ? 'bg-secondary border-secondary text-foreground'
+                : 'border-border text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+            }`}
           >
             {t === 'All' ? 'All' : TYPE_LABELS[t] || t}
           </button>
@@ -80,40 +126,52 @@ export function ExploreWorkoutsPage() {
         {DIFFICULTIES.map((d) => (
           <button
             key={d}
-            className="shrink-0 rounded border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
+            onClick={() => setDifficulty(d)}
+            className={`shrink-0 rounded border px-2.5 py-1 text-xs font-medium transition-colors ${
+              difficulty === d
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:bg-secondary'
+            }`}
           >
             {d}
           </button>
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {SAMPLE_ROUTINES.map((routine) => (
-          <div
-            key={routine.id}
-            className="rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
-          >
-            <div className="h-24 bg-gradient-to-br from-workout/20 to-workout/5 flex items-center justify-center">
-              <Dumbbell className="h-8 w-8 text-workout/40" />
-            </div>
-            <div className="p-4 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-sm">{routine.title}</h3>
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${DIFF_COLORS[routine.difficulty]}`}>
-                  {routine.difficulty.toLowerCase()}
-                </span>
+      {filtered.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center">
+          <Search className="mx-auto h-8 w-8 text-muted-foreground/50" />
+          <p className="mt-2 text-sm text-muted-foreground">No routines match your filters.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((routine) => (
+            <div
+              key={routine.id}
+              className="rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
+            >
+              <div className="h-24 bg-gradient-to-br from-workout/20 to-workout/5 flex items-center justify-center">
+                <Dumbbell className="h-8 w-8 text-workout/40" />
               </div>
-              <p className="text-xs text-muted-foreground">{routine.description}</p>
-              <div className="flex gap-2 flex-wrap">
-                <span className="rounded bg-workout/10 px-2 py-0.5 text-xs text-workout">
-                  {TYPE_LABELS[routine.workout_type]}
-                </span>
-                <span className="text-xs text-muted-foreground">{routine.exercises.length} exercises</span>
+              <div className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-sm">{routine.title}</h3>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${DIFF_COLORS[routine.difficulty]}`}>
+                    {routine.difficulty.toLowerCase()}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">{routine.description}</p>
+                <div className="flex gap-2 flex-wrap">
+                  <span className="rounded bg-workout/10 px-2 py-0.5 text-xs text-workout">
+                    {TYPE_LABELS[routine.workout_type]}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{routine.exercises.length} exercises</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       <p className="text-center text-sm text-muted-foreground">
         More routines coming soon. Admins can add routines via the API.

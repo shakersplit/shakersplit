@@ -400,7 +400,7 @@ export function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading || (isSignUp && !!confirmPassword && confirmPassword !== password)}
+              disabled={loading || (isSignUp && confirmPassword.length > 0 && confirmPassword !== password)}
               className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {loading

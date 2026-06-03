@@ -44,4 +44,18 @@ export default createHandler({
 
     return success(res, data);
   },
+
+  /**
+   * Self-delete. Uses Supabase auth admin API to remove the auth user, which cascades
+   * via FK to public.users and all owned rows. Tokens are revoked as part of the call.
+   */
+  async DELETE(_req, res, user) {
+    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+    if (authErr) {
+      return error(res, 500, 'INTERNAL_ERROR', `Account deletion failed: ${authErr.message}`);
+    }
+    // Best-effort cleanup of public.users in case the cascade trigger isn't configured.
+    await supabaseAdmin.from('users').delete().eq('id', user.id);
+    return success(res, { deleted: true });
+  },
 });

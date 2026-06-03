@@ -85,7 +85,13 @@ export function HomePage() {
             {isAuthenticated ? (
               <>
                 <button
-                  onClick={() => signOut()}
+                  onClick={async () => {
+                    try {
+                      await signOut();
+                    } catch (err) {
+                      console.error('sign out failed', err);
+                    }
+                  }}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Sign out

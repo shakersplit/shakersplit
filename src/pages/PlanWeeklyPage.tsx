@@ -1,25 +1,36 @@
 import { useState } from 'react';
 import { ClipboardList, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
-import { usePlans, useCreatePlan, useCreatePlanEntry, useDeletePlanEntry } from '@/features/plans';
+import { usePlans, usePlan, useCreatePlan, useCreatePlanEntry, useDeletePlanEntry } from '@/features/plans';
 import type { PlanEntry } from '@/features/plans';
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+/**
+ * Returns the Monday (00:00 local time) of the ISO week containing `date`. Local time on
+ * purpose so a user planning at midnight doesn't get bumped to "next week" by UTC.
+ */
 function getMondayOfWeek(date: Date): Date {
   const d = new Date(date);
-  const day = d.getDay();
+  const day = d.getDay(); // 0 = Sunday
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-function toISODate(d: Date) {
-  return d.toISOString().split('T')[0] ?? '';
+/**
+ * Format a Date as YYYY-MM-DD using LOCAL components. We can't use toISOString() here —
+ * that converts to UTC, which on the IST side of midnight will return the next day's date.
+ */
+function toLocalISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
-function addDays(d: Date, n: number) {
+function addDays(d: Date, n: number): Date {
   const r = new Date(d);
   r.setDate(r.getDate() + n);
   return r;
@@ -38,35 +49,47 @@ export function PlanWeeklyPage() {
   const [newEntryText, setNewEntryText] = useState('');
   const [newEntryCategory, setNewEntryCategory] = useState<'FOOD' | 'WORKOUT' | 'ALCOHOL'>('FOOD');
 
-  const weekStartStr = toISODate(weekStart);
+  const weekStartStr = toLocalISODate(weekStart);
+  const todayStr = toLocalISODate(new Date());
 
-  const { data: plansData, isLoading } = usePlans();
+  // List query — finds the plan id for this week (if any).
+  const { data: plansData, isLoading: plansLoading } = usePlans({ limit: 100 });
   const createPlan = useCreatePlan();
 
   const plan = plansData?.data?.find((p) => p.week_start_date === weekStartStr) ?? null;
   const planId = plan?.id ?? null;
 
+  // Detail query — only fetched once we know the plan id, returns plan + entries.
+  const { data: planDetail, isLoading: detailLoading } = usePlan(planId);
+  const entries: PlanEntry[] = planDetail?.data?.entries ?? [];
+
   const createEntry = useCreatePlanEntry(planId ?? '');
   const deleteEntry = useDeletePlanEntry(planId ?? '');
 
-  const { data: planDetail } = usePlans();
-  const entries: PlanEntry[] = (planDetail?.data as unknown as { entries?: PlanEntry[] }[])?.find(
-    (p: unknown) => (p as { week_start_date: string }).week_start_date === weekStartStr,
-  )?.entries ?? [];
+  const isLoading = plansLoading || (planId && detailLoading);
 
-  const prevWeek = () => setWeekStart(addDays(weekStart, -7));
-  const nextWeek = () => setWeekStart(addDays(weekStart, 7));
+  const prevWeek = () => {
+    setSelectedDay(null);
+    setAddEntryDay(null);
+    setWeekStart(addDays(weekStart, -7));
+  };
+  const nextWeek = () => {
+    setSelectedDay(null);
+    setAddEntryDay(null);
+    setWeekStart(addDays(weekStart, 7));
+  };
 
-  const ensurePlanExists = async () => {
+  /** Lazily creates a plan for the current week if none exists, returns its id. */
+  const ensurePlanExists = async (): Promise<string> => {
     if (planId) return planId;
     const res = await createPlan.mutateAsync({ week_start_date: weekStartStr });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return ((res as any).data?.id as string | undefined) ?? '';
+    return res.data?.id ?? '';
   };
 
   const handleAddEntry = async (dayOfWeek: number) => {
     if (!newEntryText.trim()) return;
     const id = await ensurePlanExists();
+    if (!id) return;
     await createEntry.mutateAsync({
       day_of_week: dayOfWeek,
       category: newEntryCategory,
@@ -75,7 +98,6 @@ export function PlanWeeklyPage() {
     });
     setNewEntryText('');
     setAddEntryDay(null);
-    void id;
   };
 
   const entriesForDay = (day: number) => entries.filter((e) => e.day_of_week === day);
@@ -91,15 +113,17 @@ export function PlanWeeklyPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={prevWeek}
+            aria-label="Previous week"
             className="rounded-lg border border-border p-2 hover:bg-secondary transition-colors"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-medium min-w-[140px] text-center">
-            {toISODate(weekStart)} — {toISODate(addDays(weekStart, 6))}
+          <span className="text-sm font-medium min-w-[180px] text-center">
+            {weekStartStr} — {toLocalISODate(addDays(weekStart, 6))}
           </span>
           <button
             onClick={nextWeek}
+            aria-label="Next week"
             className="rounded-lg border border-border p-2 hover:bg-secondary transition-colors"
           >
             <ChevronRight className="h-4 w-4" />
@@ -115,23 +139,37 @@ export function PlanWeeklyPage() {
         </div>
       ) : (
         <>
-          {/* 7-day grid */}
+          {/* 7-day grid — Monday-first to match the data model (day_of_week 0=Mon ... 6=Sun would
+              be unusual; we keep the schema 0=Sun..6=Sat but render Mon-first for UX). */}
           <div className="grid grid-cols-7 gap-2">
             {DAYS.map((day, idx) => {
-              const dayEntries = entriesForDay(idx);
-              const isToday =
-                toISODate(addDays(weekStart, idx === 0 ? 0 : idx)) ===
-                toISODate(addDays(weekStart, new Date().getDay() === 0 ? 0 : idx));
+              // idx 0=Mon ... 6=Sun. Convert to schema's 0=Sun ... 6=Sat.
+              const dayOfWeekIndex = (idx + 1) % 7;
+              const dayDate = addDays(weekStart, idx);
+              const isToday = toLocalISODate(dayDate) === todayStr;
+              const dayEntries = entriesForDay(dayOfWeekIndex);
+
               return (
                 <button
                   key={day}
-                  onClick={() => setSelectedDay(idx === selectedDay ? null : idx)}
+                  onClick={() =>
+                    setSelectedDay(dayOfWeekIndex === selectedDay ? null : dayOfWeekIndex)
+                  }
                   className={`rounded-lg border text-left p-2 transition-colors hover:bg-secondary/50 ${
-                    selectedDay === idx ? 'border-primary bg-secondary' : 'border-border bg-card'
+                    selectedDay === dayOfWeekIndex
+                      ? 'border-primary bg-secondary'
+                      : isToday
+                      ? 'border-primary/50 bg-card'
+                      : 'border-border bg-card'
                   }`}
                 >
-                  <p className={`text-xs font-semibold mb-1 ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
-                    {day}
+                  <p
+                    className={`text-xs font-semibold mb-1 flex items-center justify-between ${
+                      isToday ? 'text-primary' : 'text-muted-foreground'
+                    }`}
+                  >
+                    <span>{day}</span>
+                    <span className="opacity-60">{dayDate.getDate()}</span>
                   </p>
                   <div className="space-y-1">
                     {dayEntries.slice(0, 2).map((e) => (
@@ -155,7 +193,7 @@ export function PlanWeeklyPage() {
           {selectedDay !== null && (
             <div className="rounded-lg border border-border bg-card p-4 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{DAY_LABELS[selectedDay]}</h3>
+                <h3 className="font-semibold">{DAY_LABELS[((selectedDay + 6) % 7)]}</h3>
                 <button
                   onClick={() => setAddEntryDay(selectedDay)}
                   className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
@@ -193,10 +231,10 @@ export function PlanWeeklyPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleAddEntry(selectedDay)}
-                      disabled={createEntry.isPending}
+                      disabled={createEntry.isPending || !newEntryText.trim()}
                       className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                     >
-                      Save
+                      {createEntry.isPending ? 'Saving…' : 'Save'}
                     </button>
                     <button
                       onClick={() => { setAddEntryDay(null); setNewEntryText(''); }}
@@ -220,12 +258,15 @@ export function PlanWeeklyPage() {
                       key={entry.id}
                       className={`flex items-center justify-between rounded-lg border px-3 py-2 ${CATEGORY_COLORS[entry.category]}`}
                     >
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <span className="text-xs font-medium uppercase">{entry.category}</span>
-                        <p className="text-sm">{entry.notes || JSON.stringify(entry.content)}</p>
+                        <p className="text-sm truncate">{entry.notes || JSON.stringify(entry.content)}</p>
                       </div>
                       <button
-                        onClick={() => deleteEntry.mutate(entry.id)}
+                        onClick={() => {
+                          if (window.confirm('Delete this plan entry?')) deleteEntry.mutate(entry.id);
+                        }}
+                        aria-label="Delete entry"
                         className="rounded p-1 opacity-60 hover:opacity-100"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

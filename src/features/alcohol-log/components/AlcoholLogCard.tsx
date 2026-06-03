@@ -23,7 +23,10 @@ export function AlcoholLogCard({ log, onDelete }: AlcoholLogCardProps) {
           <span className="text-sm font-medium">{log.quantity_ml} ml</span>
           {onDelete && (
             <button
-              onClick={() => onDelete(log.id)}
+              onClick={() => {
+                if (window.confirm('Delete this drink entry?')) onDelete(log.id);
+              }}
+              aria-label="Delete entry"
               className="rounded p-1 text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="h-4 w-4" />

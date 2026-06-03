@@ -21,7 +21,10 @@ export function FoodLogCard({ log, onDelete }: FoodLogCardProps) {
         </div>
         {onDelete && (
           <button
-            onClick={() => onDelete(log.id)}
+            onClick={() => {
+              if (window.confirm('Delete this meal entry?')) onDelete(log.id);
+            }}
+            aria-label="Delete entry"
             className="rounded p-1 text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="h-4 w-4" />
@@ -31,7 +34,7 @@ export function FoodLogCard({ log, onDelete }: FoodLogCardProps) {
 
       <ul className="mt-2 space-y-1">
         {log.food_items.map((item, i) => (
-          <li key={i} className="text-sm">
+          <li key={`${log.id}-item-${i}`} className="text-sm">
             <span className="font-medium">{item.name}</span>
             <span className="text-muted-foreground"> — {item.quantity}</span>
             {item.calories && <span className="text-muted-foreground"> ({item.calories} cal)</span>}

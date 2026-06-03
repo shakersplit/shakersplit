@@ -50,10 +50,11 @@ export function ResetPasswordPage() {
         setRecoverySession('ok');
       }
     });
-    // After a short grace period, if no event arrived, treat the link as invalid.
+    // Wait up to 4 seconds for the recovery hash to register before treating the link as bad.
+    // Slow networks / cold-start service workers can take 2-3 seconds.
     const timeout = setTimeout(() => {
       setRecoverySession((s) => (s === 'pending' ? 'invalid' : s));
-    }, 1500);
+    }, 4000);
     return () => {
       subscription.unsubscribe();
       clearTimeout(timeout);
@@ -222,7 +223,7 @@ export function ResetPasswordPage() {
 
           <button
             type="submit"
-            disabled={loading || !!confirmPassword && confirmPassword !== password}
+            disabled={loading || (confirmPassword.length > 0 && confirmPassword !== password)}
             className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Updating…' : 'Update password'}

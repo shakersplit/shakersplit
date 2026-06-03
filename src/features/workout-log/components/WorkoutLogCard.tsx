@@ -23,7 +23,10 @@ export function WorkoutLogCard({ log, onDelete }: WorkoutLogCardProps) {
           <span className="text-sm font-medium">{log.duration_minutes} min</span>
           {onDelete && (
             <button
-              onClick={() => onDelete(log.id)}
+              onClick={() => {
+                if (window.confirm('Delete this workout entry?')) onDelete(log.id);
+              }}
+              aria-label="Delete entry"
               className="rounded p-1 text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="h-4 w-4" />
@@ -34,7 +37,7 @@ export function WorkoutLogCard({ log, onDelete }: WorkoutLogCardProps) {
 
       <ul className="mt-2 space-y-1">
         {log.exercises.map((ex, i) => (
-          <li key={i} className="text-sm">
+          <li key={`${log.id}-ex-${i}`} className="text-sm">
             <span className="font-medium">{ex.name}</span>
             {ex.sets && ex.reps && (
               <span className="text-muted-foreground">

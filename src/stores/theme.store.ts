@@ -1,10 +1,23 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+type Theme = 'dark' | 'light';
+
 interface ThemeState {
-  theme: 'dark' | 'light';
+  theme: Theme;
   toggleTheme: () => void;
-  setTheme: (theme: 'dark' | 'light') => void;
+  setTheme: (theme: Theme) => void;
+}
+
+/**
+ * Apply a theme by manipulating the <html> element's classes. Removes the opposite class
+ * before adding the new one so we never end up with both `dark` and `light` set, which
+ * the CSS would resolve unpredictably.
+ */
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  root.classList.remove('dark', 'light');
+  root.classList.add(theme);
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -13,14 +26,12 @@ export const useThemeStore = create<ThemeState>()(
       theme: 'dark',
       toggleTheme: () =>
         set((state) => {
-          const newTheme = state.theme === 'dark' ? 'light' : 'dark';
-          document.documentElement.classList.toggle('dark', newTheme === 'dark');
-          document.documentElement.classList.toggle('light', newTheme === 'light');
+          const newTheme: Theme = state.theme === 'dark' ? 'light' : 'dark';
+          applyTheme(newTheme);
           return { theme: newTheme };
         }),
       setTheme: (theme) => {
-        document.documentElement.classList.toggle('dark', theme === 'dark');
-        document.documentElement.classList.toggle('light', theme === 'light');
+        applyTheme(theme);
         set({ theme });
       },
     }),

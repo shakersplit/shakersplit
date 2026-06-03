@@ -1,5 +1,16 @@
 @import 'tailwindcss';
 
+/*
+ * THEME TOKENS
+ * ------------------------------------------------------------------
+ * @theme block tells Tailwind v4 about the custom color tokens that exist.
+ * The actual VALUES live in the :root / .light overrides below — the @theme
+ * defaults match dark mode (the default site mode) so SSR/initial paint is correct.
+ *
+ * Both `html.dark` and `html.light` are reachable: the theme store toggles
+ * the class on <html>, the variables here flip with it, and Tailwind utilities
+ * (bg-background, text-foreground, etc.) re-resolve to the new values automatically.
+ */
 @theme {
   --color-background: hsl(222.2 84% 4.9%);
   --color-foreground: hsl(210 40% 98%);
@@ -13,7 +24,7 @@
   --color-muted-foreground: hsl(215 20.2% 65.1%);
   --color-accent: hsl(217.2 32.6% 17.5%);
   --color-accent-foreground: hsl(210 40% 98%);
-  --color-destructive: hsl(0 62.8% 30.6%);
+  --color-destructive: hsl(0 62.8% 45%);
   --color-destructive-foreground: hsl(210 40% 98%);
   --color-border: hsl(217.2 32.6% 17.5%);
   --color-input: hsl(217.2 32.6% 17.5%);
@@ -26,9 +37,65 @@
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 
+/*
+ * DARK (default) — explicit overrides for clarity. Match the @theme block above.
+ * Either `html.dark` OR no class on <html> resolves to this palette.
+ */
+:root,
+html.dark {
+  --color-background: hsl(222.2 84% 4.9%);
+  --color-foreground: hsl(210 40% 98%);
+  --color-card: hsl(222.2 84% 8%);
+  --color-card-foreground: hsl(210 40% 98%);
+  --color-primary: hsl(210 40% 98%);
+  --color-primary-foreground: hsl(222.2 47.4% 11.2%);
+  --color-secondary: hsl(217.2 32.6% 17.5%);
+  --color-secondary-foreground: hsl(210 40% 98%);
+  --color-muted: hsl(217.2 32.6% 17.5%);
+  --color-muted-foreground: hsl(215 20.2% 65.1%);
+  --color-accent: hsl(217.2 32.6% 17.5%);
+  --color-accent-foreground: hsl(210 40% 98%);
+  --color-destructive: hsl(0 62.8% 45%);
+  --color-destructive-foreground: hsl(210 40% 98%);
+  --color-border: hsl(217.2 32.6% 17.5%);
+  --color-input: hsl(217.2 32.6% 17.5%);
+  --color-ring: hsl(212.7 26.8% 83.9%);
+}
+
+/*
+ * LIGHT — clean, high-contrast palette tuned to keep brand colors (food/workout/alcohol)
+ * readable on a near-white surface. Brand swatches stay the same in both modes —
+ * only the chrome (background, card, text) flips.
+ */
+html.light {
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(222.2 84% 4.9%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222.2 84% 4.9%);
+  --color-primary: hsl(222.2 47.4% 11.2%);
+  --color-primary-foreground: hsl(210 40% 98%);
+  --color-secondary: hsl(210 40% 96.1%);
+  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
+  --color-muted: hsl(210 40% 96.1%);
+  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
+  --color-accent: hsl(210 40% 96.1%);
+  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
+  --color-destructive: hsl(0 84.2% 50%);
+  --color-destructive-foreground: hsl(210 40% 98%);
+  --color-border: hsl(214.3 31.8% 91.4%);
+  --color-input: hsl(214.3 31.8% 91.4%);
+  --color-ring: hsl(222.2 84% 4.9%);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
+  }
+  html {
+    color-scheme: dark;
+  }
+  html.light {
+    color-scheme: light;
   }
   body {
     background-color: var(--color-background);
@@ -36,19 +103,23 @@
     font-feature-settings:
       'rlig' 1,
       'calt' 1;
+    transition: background-color 200ms ease, color 200ms ease;
   }
 }
 
-/* Scrollbar styling for dark mode */
+/* Scrollbar styling — uses the resolved theme variables so it flips with the rest. */
 ::-webkit-scrollbar {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background));
+  background: var(--color-background);
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted));
+  background: var(--color-muted);
   border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
 }
 
 /* Safe area padding for PWA on iOS */
