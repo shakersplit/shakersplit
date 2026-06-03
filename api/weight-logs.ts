@@ -36,7 +36,6 @@ export default createHandler({
       notes: body.notes,
     });
 
-    // Friendly error for the unique-per-day constraint violation.
     if (dbError) {
       if (dbError.code === '23505') {
         return error(res, 409, 'CONFLICT', 'A weight entry already exists for this date. Edit it instead.');
