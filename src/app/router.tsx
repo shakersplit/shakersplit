@@ -15,6 +15,8 @@ import { LogAlcoholPage } from '@/pages/LogAlcoholPage';
 import { LogWeightPage } from '@/pages/LogWeightPage';
 import { LogMentalHealthPage } from '@/pages/LogMentalHealthPage';
 import { FriendsPage } from '@/pages/FriendsPage';
+import { ActivityFeedPage } from '@/pages/ActivityFeedPage';
+import { GoalsPage } from '@/pages/GoalsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { PlanWeeklyPage } from '@/pages/PlanWeeklyPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
@@ -46,6 +48,8 @@ export const router = createBrowserRouter([
       { path: 'log/weight', element: <LogWeightPage /> },
       { path: 'log/mental', element: <LogMentalHealthPage /> },
       { path: 'friends', element: <FriendsPage /> },
+      { path: 'feed', element: <ActivityFeedPage /> },
+      { path: 'goals', element: <GoalsPage /> },
       { path: 'explore/recipes', element: <ExploreRecipesPage /> },
       { path: 'explore/workouts', element: <ExploreWorkoutsPage /> },
       { path: 'analytics', element: <AnalyticsPage /> },

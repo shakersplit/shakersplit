@@ -8,6 +8,8 @@ import {
   Scale,
   Heart,
   Users,
+  Newspaper,
+  Target,
   Search,
   BarChart3,
   User,
@@ -18,6 +20,8 @@ import { useIsAdmin } from '@/hooks/useRole';
 
 const navItems = [
   { to: '/app', icon: Home, label: 'Dashboard', end: true },
+  { to: '/app/feed', icon: Newspaper, label: 'Activity Feed', end: false },
+  { to: '/app/goals', icon: Target, label: 'Goals', end: false },
   { to: '/app/plan', icon: ClipboardList, label: 'Plan', end: false },
   { to: '/app/log/food', icon: UtensilsCrossed, label: 'Log Food', end: false },
   { to: '/app/log/workout', icon: Dumbbell, label: 'Log Workout', end: false },

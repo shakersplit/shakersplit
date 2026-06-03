@@ -15,6 +15,7 @@ export const createFoodLogSchema = z.object({
   total_protein_g: z.number().optional(),
   photo_url: z.string().url().optional(),
   notes: z.string().optional(),
+  share_with_friends: z.boolean().optional(),
 });
 
 export type CreateFoodLogInput = z.infer<typeof createFoodLogSchema>;

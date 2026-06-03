@@ -28,4 +28,5 @@ export interface CreateFoodLogInput {
   total_protein_g?: number;
   photo_url?: string;
   notes?: string;
+  share_with_friends?: boolean;
 }

@@ -13,12 +13,14 @@ import {
   Scale,
   Heart,
   Users,
+  Newspaper,
+  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const tabs = [
   { to: '/app', icon: Home, label: 'Home' },
-  { to: '/app/plan', icon: ClipboardList, label: 'Plan' },
+  { to: '/app/feed', icon: Newspaper, label: 'Feed' },
   // The "Log" tab is special: opens a sheet of log shortcuts.
   { to: '__log__', icon: PenSquare, label: 'Log' },
   { to: '/app/friends', icon: Users, label: 'Friends' },
@@ -88,6 +90,8 @@ export function BottomTabs() {
               <SheetLink to="/app/log/alcohol" label="Alcohol" icon={<Wine className="h-5 w-5 text-alcohol" />} onClick={() => setLogOpen(false)} />
               <SheetLink to="/app/log/weight" label="Weight" icon={<Scale className="h-5 w-5 text-mental" />} onClick={() => setLogOpen(false)} />
               <SheetLink to="/app/log/mental" label="Mood" icon={<Heart className="h-5 w-5 text-mental" />} onClick={() => setLogOpen(false)} />
+              <SheetLink to="/app/plan" label="Plan" icon={<ClipboardList className="h-5 w-5" />} onClick={() => setLogOpen(false)} />
+              <SheetLink to="/app/goals" label="Goals" icon={<Target className="h-5 w-5 text-primary" />} onClick={() => setLogOpen(false)} />
               <SheetLink to="/app/explore/recipes" label="Explore" icon={<Search className="h-5 w-5" />} onClick={() => setLogOpen(false)} />
             </div>
           </div>

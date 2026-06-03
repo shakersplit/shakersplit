@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useCreateWorkoutLog } from '../hooks/useCreateWorkoutLog';
 import { Plus, Trash2 } from 'lucide-react';
 import type { WorkoutType } from '@/types';
+import { WorkoutTemplatesPicker, SaveAsTemplateButton, type WorkoutTemplate } from './WorkoutTemplates';
 
 const exerciseSchema = z.object({
   name: z.string().min(1, 'Exercise name required'),
@@ -62,6 +63,8 @@ export function WorkoutLogForm({ onSuccess }: WorkoutLogFormProps) {
     handleSubmit,
     reset,
     watch,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm<WorkoutLogFormValues>({
     resolver: zodResolver(workoutLogSchema),
@@ -73,7 +76,7 @@ export function WorkoutLogForm({ onSuccess }: WorkoutLogFormProps) {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: 'exercises',
   });
@@ -92,8 +95,28 @@ export function WorkoutLogForm({ onSuccess }: WorkoutLogFormProps) {
     }
   };
 
+  /** Populate the form from a saved template — overwrites all fields. */
+  const applyTemplate = (t: WorkoutTemplate) => {
+    setValue('workout_type', t.workout_type);
+    setValue('duration_minutes', t.duration_minutes);
+    setValue('notes', t.notes ?? '');
+    // Replace whole field array with template exercises so RHF re-renders cleanly.
+    replace(
+      t.exercises.length > 0
+        ? t.exercises.map((e) => ({
+            name: e.name,
+            sets: e.sets,
+            reps: e.reps,
+            weight_kg: e.weight_kg,
+          }))
+        : [{ name: '', sets: undefined, reps: undefined, weight_kg: undefined }],
+    );
+  };
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      {/* Templates picker — appears only if user has saved any */}
+      <WorkoutTemplatesPicker onPick={applyTemplate} />
       {/* Workout Type */}
       <div>
         <label className="block text-sm font-medium mb-2">Workout Type</label>
@@ -221,6 +244,39 @@ export function WorkoutLogForm({ onSuccess }: WorkoutLogFormProps) {
       >
         {createWorkoutLog.isPending ? 'Saving...' : 'Log Workout'}
       </button>
+
+      {/* Save current workout as template — visible only when there's at least one named exercise. */}
+      {fields.length > 0 && (
+        <SaveAsTemplateCallout watchValues={watch} getValues={getValues} />
+      )}
     </form>
+  );
+}
+
+/**
+ * Tiny adapter — pulls current form values via watch() so the template button reflects what's
+ * in the form right now. Hidden until the user has typed an exercise name (template would be empty).
+ */
+function SaveAsTemplateCallout({
+  watchValues,
+  getValues,
+}: {
+  watchValues: ReturnType<typeof useForm<WorkoutLogFormValues>>['watch'];
+  getValues: ReturnType<typeof useForm<WorkoutLogFormValues>>['getValues'];
+}) {
+  // Subscribe to exercises so the button hides/shows when the first name appears.
+  const exercises = watchValues('exercises');
+  const hasNamedExercise = exercises.some((e) => e.name?.trim());
+  if (!hasNamedExercise) return null;
+
+  return (
+    <div className="pt-1">
+      <SaveAsTemplateButton
+        workoutType={getValues('workout_type')}
+        durationMinutes={getValues('duration_minutes')}
+        exercises={getValues('exercises').filter((e) => e.name?.trim())}
+        notes={getValues('notes') || undefined}
+      />
+    </div>
   );
 }

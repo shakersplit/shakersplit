@@ -5,7 +5,7 @@ import { useThemeStore } from '@/stores/theme.store';
 import { useUserProfile, useIsAdmin } from '@/hooks/useRole';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { supabase } from '@/lib/supabase';
-import { User, LogOut, Moon, Sun, Trash2, ShieldCheck, Mail, Bell, BellOff, Smartphone, AlertCircle } from 'lucide-react';
+import { User, LogOut, Moon, Sun, Trash2, ShieldCheck, Mail, Bell, BellOff, Smartphone, AlertCircle, Download } from 'lucide-react';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -126,6 +126,9 @@ export function ProfilePage() {
       {/* Notifications */}
       <NotificationSettings />
 
+      {/* Data export */}
+      <DataExportCard />
+
       {/* Danger zone */}
       <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5 space-y-3">
         <div>
@@ -181,6 +184,61 @@ export function ProfilePage() {
           <div className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
         )}
       </div>
+    </div>
+  );
+}
+
+function DataExportCard() {
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleExport = async () => {
+    setError('');
+    setDownloading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/users/me?action=export', {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error?.message ?? `Export failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shakersplit-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <Download className="h-4 w-4 text-mental" />
+        <h3 className="text-sm font-semibold">Export your data</h3>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Download all your logs, plans, goals, and friendships as a single JSON file.
+        Useful for backups or moving to another tool.
+      </p>
+      <button
+        onClick={handleExport}
+        disabled={downloading}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-50"
+      >
+        <Download className="h-4 w-4" />
+        {downloading ? 'Preparing…' : 'Download JSON export'}
+      </button>
+      {error && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
     </div>
   );
 }
