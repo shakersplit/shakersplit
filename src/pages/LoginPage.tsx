@@ -43,7 +43,9 @@ export function LoginPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/', { replace: true });
+    // Already signed in? Bounce to /app, NOT /. Sending to / would loop because the homepage
+    // also has Sign in / Sign up CTAs that point straight back to /auth.
+    if (isAuthenticated) navigate('/app', { replace: true });
   }, [isAuthenticated, navigate]);
 
   const strength = getPasswordStrength(password);

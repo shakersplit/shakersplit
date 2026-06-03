@@ -12,6 +12,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { BrandMark } from '@/components/brand/BrandMark';
+import { useAuth } from '@/hooks/useAuth';
 
 const FEATURES = [
   {
@@ -67,6 +68,10 @@ const PERKS = [
 ];
 
 export function HomePage() {
+  // When already signed in, the marketing CTAs become "Open app" / "Sign out" so the user
+  // can actually exit the marketing page. Otherwise clicking "Sign in" loops back here.
+  const { isAuthenticated, signOut } = useAuth();
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Nav */}
@@ -77,18 +82,37 @@ export function HomePage() {
             <span className="text-lg font-extrabold tracking-tight">Shaker<span className="text-food">Split</span></span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link
-              to="/auth"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Sign in
-            </Link>
-            <Link
-              to="/auth?signup=true"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Get started free
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => signOut()}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Sign out
+                </button>
+                <Link
+                  to="/app"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Open app
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/auth"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/auth?signup=true"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Get started free
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -122,17 +146,19 @@ export function HomePage() {
 
         <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
           <Link
-            to="/auth?signup=true"
+            to={isAuthenticated ? '/app' : '/auth?signup=true'}
             className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
           >
-            Start for free <ArrowRight className="h-4 w-4" />
+            {isAuthenticated ? 'Open app' : 'Start for free'} <ArrowRight className="h-4 w-4" />
           </Link>
-          <Link
-            to="/auth"
-            className="rounded-xl border border-border px-6 py-3 text-base font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-          >
-            Sign in
-          </Link>
+          {!isAuthenticated && (
+            <Link
+              to="/auth"
+              className="rounded-xl border border-border px-6 py-3 text-base font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              Sign in
+            </Link>
+          )}
         </div>
 
         {/* Mini stat pills */}
@@ -199,14 +225,16 @@ export function HomePage() {
       {/* CTA */}
       <section className="py-24 px-6 text-center">
         <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-          Ready to actually track your life?
+          {isAuthenticated ? 'Pick up where you left off.' : 'Ready to actually track your life?'}
         </h2>
-        <p className="mb-8 text-muted-foreground">Takes 30 seconds to sign up.</p>
+        <p className="mb-8 text-muted-foreground">
+          {isAuthenticated ? 'Your dashboard is one click away.' : 'Takes 30 seconds to sign up.'}
+        </p>
         <Link
-          to="/auth?signup=true"
+          to={isAuthenticated ? '/app' : '/auth?signup=true'}
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
         >
-          Get started free <ArrowRight className="h-4 w-4" />
+          {isAuthenticated ? 'Open app' : 'Get started free'} <ArrowRight className="h-4 w-4" />
         </Link>
       </section>
 
