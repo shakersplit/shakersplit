@@ -18,7 +18,15 @@ const alcoholLogSchema = z.object({
 type AlcoholLogFormValues = z.infer<typeof alcoholLogSchema>;
 
 const SPIRIT_OPTIONS = [
-  'Vodka', 'Gin', 'Tequila', 'Rum', 'Whiskey', 'Beer', 'Wine', 'Cocktail', 'Other',
+  'Vodka',
+  'Gin',
+  'Tequila',
+  'Rum',
+  'Whiskey',
+  'Beer',
+  'Wine',
+  'Cocktail',
+  'Other',
 ];
 
 interface AlcoholLogFormProps {
@@ -65,7 +73,12 @@ export function AlcoholLogForm({ onSuccess }: AlcoholLogFormProps) {
         <div className="flex flex-wrap gap-2">
           {SPIRIT_OPTIONS.map((spirit) => (
             <label key={spirit} className="cursor-pointer">
-              <input type="radio" value={spirit.toLowerCase()} {...register('spirit_type')} className="peer hidden" />
+              <input
+                type="radio"
+                value={spirit.toLowerCase()}
+                {...register('spirit_type')}
+                className="peer hidden"
+              />
               <span className="inline-block rounded-lg border border-input px-3 py-1.5 text-sm peer-checked:bg-alcohol peer-checked:text-white peer-checked:border-alcohol transition-colors">
                 {spirit}
               </span>

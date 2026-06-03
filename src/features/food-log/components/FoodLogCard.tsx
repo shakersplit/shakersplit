@@ -34,9 +34,7 @@ export function FoodLogCard({ log, onDelete }: FoodLogCardProps) {
           <li key={i} className="text-sm">
             <span className="font-medium">{item.name}</span>
             <span className="text-muted-foreground"> — {item.quantity}</span>
-            {item.calories && (
-              <span className="text-muted-foreground"> ({item.calories} cal)</span>
-            )}
+            {item.calories && <span className="text-muted-foreground"> ({item.calories} cal)</span>}
           </li>
         ))}
       </ul>

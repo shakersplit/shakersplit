@@ -78,7 +78,12 @@ export function FoodLogForm({ onSuccess }: FoodLogFormProps) {
         <div className="flex flex-wrap gap-2">
           {MEAL_TYPES.map(({ value, label }) => (
             <label key={value} className="cursor-pointer">
-              <input type="radio" value={value} {...register('meal_type')} className="peer hidden" />
+              <input
+                type="radio"
+                value={value}
+                {...register('meal_type')}
+                className="peer hidden"
+              />
               <span className="inline-block rounded-lg border border-input px-3 py-1.5 text-sm peer-checked:bg-food peer-checked:text-white peer-checked:border-food transition-colors">
                 {label}
               </span>
@@ -139,7 +144,9 @@ export function FoodLogForm({ onSuccess }: FoodLogFormProps) {
         )}
         <button
           type="button"
-          onClick={() => append({ name: '', quantity: '', calories: undefined, protein_g: undefined })}
+          onClick={() =>
+            append({ name: '', quantity: '', calories: undefined, protein_g: undefined })
+          }
           className="mt-2 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <Plus className="h-4 w-4" /> Add item

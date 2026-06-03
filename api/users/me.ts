@@ -1,6 +1,6 @@
-import { createHandler } from '../../_lib/factories/handler.factory';
-import { supabaseAdmin } from '../../_lib/config/supabase.config';
-import { success, error } from '../../_lib/utils/response.util';
+import { createHandler } from '../_lib/factories/handler.factory';
+import { supabaseAdmin } from '../_lib/config/supabase.config';
+import { success, error } from '../_lib/utils/response.util';
 
 export default createHandler({
   async GET(_req, res, user) {

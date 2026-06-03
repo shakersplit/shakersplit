@@ -38,11 +38,7 @@ export function WorkoutLogList() {
   return (
     <div className="space-y-3">
       {logs.map((log) => (
-        <WorkoutLogCard
-          key={log.id}
-          log={log}
-          onDelete={(id) => deleteMutation.mutate(id)}
-        />
+        <WorkoutLogCard key={log.id} log={log} onDelete={(id) => deleteMutation.mutate(id)} />
       ))}
     </div>
   );

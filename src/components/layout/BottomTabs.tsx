@@ -3,11 +3,11 @@ import { Home, ClipboardList, PenSquare, Search, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const tabs = [
-  { to: '/', icon: Home, label: 'Home' },
-  { to: '/plan', icon: ClipboardList, label: 'Plan' },
-  { to: '/log/food', icon: PenSquare, label: 'Log' },
-  { to: '/explore/recipes', icon: Search, label: 'Explore' },
-  { to: '/profile', icon: User, label: 'Profile' },
+  { to: '/app', icon: Home, label: 'Home' },
+  { to: '/app/plan', icon: ClipboardList, label: 'Plan' },
+  { to: '/app/log/food', icon: PenSquare, label: 'Log' },
+  { to: '/app/explore/recipes', icon: Search, label: 'Explore' },
+  { to: '/app/profile', icon: User, label: 'Profile' },
 ];
 
 export function BottomTabs() {
@@ -18,7 +18,7 @@ export function BottomTabs() {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
+            end={to === '/app'}
             className={({ isActive }) =>
               cn(
                 'flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition-colors',

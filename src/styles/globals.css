@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --color-background: hsl(222.2 84% 4.9%);
@@ -18,10 +18,10 @@
   --color-border: hsl(217.2 32.6% 17.5%);
   --color-input: hsl(217.2 32.6% 17.5%);
   --color-ring: hsl(212.7 26.8% 83.9%);
-  --color-food: #4CAF50;
-  --color-workout: #FF9800;
-  --color-alcohol: #9C27B0;
-  --color-mental: #2196F3;
+  --color-food: #4caf50;
+  --color-workout: #ff9800;
+  --color-alcohol: #9c27b0;
+  --color-mental: #2196f3;
   --radius: 0.5rem;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
@@ -33,7 +33,9 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-feature-settings: 'rlig' 1, 'calt' 1;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
   }
 }
 

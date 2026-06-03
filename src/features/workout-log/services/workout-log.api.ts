@@ -19,6 +19,13 @@ export async function createWorkoutLog(data: CreateWorkoutLogInput) {
   });
 }
 
+export async function updateWorkoutLog(id: string, data: CreateWorkoutLogInput) {
+  return apiClient<ApiResponse<WorkoutLog>>(`/workout-logs/${id}`, {
+    method: 'PUT',
+    body: data,
+  });
+}
+
 export async function deleteWorkoutLog(id: string) {
   return apiClient<ApiResponse<{ deleted: true }>>(`/workout-logs/${id}`, {
     method: 'DELETE',

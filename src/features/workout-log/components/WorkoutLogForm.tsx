@@ -16,8 +16,16 @@ const exerciseSchema = z.object({
 
 const workoutLogSchema = z.object({
   workout_type: z.enum([
-    'GYM_PUSH', 'GYM_PULL', 'GYM_LEGS', 'GYM_UPPER', 'GYM_LOWER',
-    'GYM_FULL', 'RUN', 'WALK', 'SPORT', 'OTHER',
+    'GYM_PUSH',
+    'GYM_PULL',
+    'GYM_LEGS',
+    'GYM_UPPER',
+    'GYM_LOWER',
+    'GYM_FULL',
+    'RUN',
+    'WALK',
+    'SPORT',
+    'OTHER',
   ]),
   duration_minutes: z.number().min(1, 'Duration must be at least 1 minute'),
   exercises: z.array(exerciseSchema).min(1, 'Add at least one exercise'),
@@ -92,7 +100,12 @@ export function WorkoutLogForm({ onSuccess }: WorkoutLogFormProps) {
         <div className="flex flex-wrap gap-2">
           {WORKOUT_TYPES.map(({ value, label }) => (
             <label key={value} className="cursor-pointer">
-              <input type="radio" value={value} {...register('workout_type')} className="peer hidden" />
+              <input
+                type="radio"
+                value={value}
+                {...register('workout_type')}
+                className="peer hidden"
+              />
               <span className="inline-block rounded-lg border border-input px-3 py-1.5 text-sm peer-checked:bg-workout peer-checked:text-white peer-checked:border-workout transition-colors">
                 {label}
               </span>
@@ -175,7 +188,9 @@ export function WorkoutLogForm({ onSuccess }: WorkoutLogFormProps) {
         </div>
         <button
           type="button"
-          onClick={() => append({ name: '', sets: undefined, reps: undefined, weight_kg: undefined })}
+          onClick={() =>
+            append({ name: '', sets: undefined, reps: undefined, weight_kg: undefined })
+          }
           className="mt-2 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <Plus className="h-4 w-4" /> Add {isCardio ? 'segment' : 'exercise'}

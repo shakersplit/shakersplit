@@ -250,8 +250,9 @@ CREATE INDEX idx_weight_logs_user_id ON weight_logs(user_id);
 CREATE INDEX idx_weight_logs_logged_at ON weight_logs(logged_at);
 
 -- Expression-based unique constraint: one weight log per user per day
+-- Use timezone-stable cast so Postgres treats the expression as IMMUTABLE
 CREATE UNIQUE INDEX idx_weight_logs_user_day
-    ON weight_logs(user_id, (logged_at::date));
+    ON weight_logs(user_id, ((logged_at AT TIME ZONE 'UTC')::date));
 
 -- ============================================================================
 -- TABLE 10: recipes

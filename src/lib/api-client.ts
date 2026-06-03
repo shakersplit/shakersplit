@@ -44,7 +44,11 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new ApiClientError(response.status, error.error?.message || error.message || 'Unknown error', error.error?.code);
+    throw new ApiClientError(
+      response.status,
+      error.error?.message || error.message || 'Unknown error',
+      error.error?.code,
+    );
   }
 
   return response.json();

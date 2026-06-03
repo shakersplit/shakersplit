@@ -38,7 +38,8 @@ export function WorkoutLogCard({ log, onDelete }: WorkoutLogCardProps) {
             <span className="font-medium">{ex.name}</span>
             {ex.sets && ex.reps && (
               <span className="text-muted-foreground">
-                {' '}— {ex.sets}×{ex.reps}
+                {' '}
+                — {ex.sets}×{ex.reps}
                 {ex.weight_kg ? ` @ ${ex.weight_kg}kg` : ''}
               </span>
             )}

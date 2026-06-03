@@ -38,11 +38,7 @@ export function AlcoholLogList() {
   return (
     <div className="space-y-3">
       {logs.map((log) => (
-        <AlcoholLogCard
-          key={log.id}
-          log={log}
-          onDelete={(id) => deleteMutation.mutate(id)}
-        />
+        <AlcoholLogCard key={log.id} log={log} onDelete={(id) => deleteMutation.mutate(id)} />
       ))}
     </div>
   );

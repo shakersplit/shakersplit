@@ -32,7 +32,7 @@ export function DashboardPage() {
           subtitle="0 cal today"
           icon={<UtensilsCrossed className="h-5 w-5" />}
           color="border-l-food"
-          to="/log/food"
+          to="/app/log/food"
         />
         <SummaryCard
           title="Workout"
@@ -40,7 +40,7 @@ export function DashboardPage() {
           subtitle="Log your session"
           icon={<Dumbbell className="h-5 w-5" />}
           color="border-l-workout"
-          to="/log/workout"
+          to="/app/log/workout"
         />
         <SummaryCard
           title="Alcohol"
@@ -48,7 +48,7 @@ export function DashboardPage() {
           subtitle="Alcohol-free day ✓"
           icon={<Wine className="h-5 w-5" />}
           color="border-l-alcohol"
-          to="/log/alcohol"
+          to="/app/log/alcohol"
         />
       </div>
 

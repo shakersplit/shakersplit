@@ -18,6 +18,13 @@ export async function createAlcoholLog(data: CreateAlcoholLogInput) {
   });
 }
 
+export async function updateAlcoholLog(id: string, data: CreateAlcoholLogInput) {
+  return apiClient<ApiResponse<AlcoholLog>>(`/alcohol-logs/${id}`, {
+    method: 'PUT',
+    body: data,
+  });
+}
+
 export async function deleteAlcoholLog(id: string) {
   return apiClient<ApiResponse<{ deleted: true }>>(`/alcohol-logs/${id}`, {
     method: 'DELETE',

@@ -4,7 +4,7 @@ import { verifyAuth } from '../middleware/auth.middleware';
 import { error } from '../utils/response.util';
 import type { AuthUser } from '../types';
 
-type Handler = (req: VercelRequest, res: VercelResponse, user: AuthUser) => Promise<void>;
+type Handler = (req: VercelRequest, res: VercelResponse, user: AuthUser) => Promise<void | VercelResponse>;
 
 interface HandlerConfig {
   GET?: Handler;

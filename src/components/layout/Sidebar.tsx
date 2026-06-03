@@ -8,20 +8,18 @@ import {
   Search,
   BarChart3,
   User,
-  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { to: '/', icon: Home, label: 'Dashboard' },
-  { to: '/plan', icon: ClipboardList, label: 'Plan' },
-  { to: '/log/food', icon: UtensilsCrossed, label: 'Log Food' },
-  { to: '/log/workout', icon: Dumbbell, label: 'Log Workout' },
-  { to: '/log/alcohol', icon: Wine, label: 'Log Alcohol' },
-  { to: '/explore/recipes', icon: Search, label: 'Explore' },
-  { to: '/analytics', icon: BarChart3, label: 'Analytics' },
-  { to: '/profile', icon: User, label: 'Profile' },
-  { to: '/admin', icon: Shield, label: 'Admin' },
+  { to: '/app', icon: Home, label: 'Dashboard' },
+  { to: '/app/plan', icon: ClipboardList, label: 'Plan' },
+  { to: '/app/log/food', icon: UtensilsCrossed, label: 'Log Food' },
+  { to: '/app/log/workout', icon: Dumbbell, label: 'Log Workout' },
+  { to: '/app/log/alcohol', icon: Wine, label: 'Log Alcohol' },
+  { to: '/app/explore/recipes', icon: Search, label: 'Explore' },
+  { to: '/app/analytics', icon: BarChart3, label: 'Analytics' },
+  { to: '/app/profile', icon: User, label: 'Profile' },
 ];
 
 export function Sidebar() {
@@ -32,7 +30,7 @@ export function Sidebar() {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
+            end={to === '/app'}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',

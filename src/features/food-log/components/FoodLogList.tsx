@@ -38,11 +38,7 @@ export function FoodLogList() {
   return (
     <div className="space-y-3">
       {logs.map((log) => (
-        <FoodLogCard
-          key={log.id}
-          log={log}
-          onDelete={(id) => deleteMutation.mutate(id)}
-        />
+        <FoodLogCard key={log.id} log={log} onDelete={(id) => deleteMutation.mutate(id)} />
       ))}
     </div>
   );

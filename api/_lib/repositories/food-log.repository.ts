@@ -25,12 +25,7 @@ export const foodLogRepository = {
   },
 
   async findById(id: string, userId: string) {
-    return supabaseAdmin
-      .from('food_logs')
-      .select('*')
-      .eq('id', id)
-      .eq('user_id', userId)
-      .single();
+    return supabaseAdmin.from('food_logs').select('*').eq('id', id).eq('user_id', userId).single();
   },
 
   async create(data: Record<string, unknown>) {

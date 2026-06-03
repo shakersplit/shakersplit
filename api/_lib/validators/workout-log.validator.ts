@@ -13,8 +13,16 @@ const exerciseSchema = z.object({
 export const createWorkoutLogSchema = z.object({
   logged_at: z.string().datetime().optional(),
   workout_type: z.enum([
-    'GYM_PUSH', 'GYM_PULL', 'GYM_LEGS', 'GYM_UPPER', 'GYM_LOWER',
-    'GYM_FULL', 'RUN', 'WALK', 'SPORT', 'OTHER',
+    'GYM_PUSH',
+    'GYM_PULL',
+    'GYM_LEGS',
+    'GYM_UPPER',
+    'GYM_LOWER',
+    'GYM_FULL',
+    'RUN',
+    'WALK',
+    'SPORT',
+    'OTHER',
   ]),
   duration_minutes: z.number().int().positive(),
   exercises: z.array(exerciseSchema).min(1),
