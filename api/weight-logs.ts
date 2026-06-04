@@ -100,10 +100,16 @@ const WEIGHT_SCHEMA = {
 const WEIGHT_SYSTEM_PROMPT =
   "You are a body-metrics-logging assistant. Given a user's plain-English weight description, return a single JSON object matching the schema. " +
   "Convert lbs/stones to kg (1 lb = 0.453592 kg, 1 stone = 6.35029 kg). " +
-  "Confidence high ONLY when the user gave both a number AND an explicit unit. " +
+  "Confidence high ONLY when the user gave both a number AND an explicit unit AND no hedging language. " +
   "If the unit is missing (e.g. 'weighed in at 82.1'), default to kg but set confidence='medium' to flag the ambiguity. " +
-  "If the user gave a vague phrase like 'a bit lighter today' with no number, set confidence='low'. " +
+  "If the user used HEDGED numeric phrasing — words like 'maybe', 'like', 'around', 'roughly', 'about', 'I think', 'or so' — set confidence='low' even if a number is present. " +
+  "If the user gave a vague phrase with no number ('a bit lighter today'), also set confidence='low'. " +
   "Return ONLY the JSON.";
+
+// Words that should drag confidence down to 'low' even if a number was given. Used as a
+// belt-and-suspenders postProcess check because the model occasionally still picks 'medium'
+// for hedged inputs.
+const HEDGE_WORDS = ['maybe', 'like ', 'around', 'roughly', 'about', 'i think', 'or so', 'kinda', 'sorta'];
 
 async function parseWeightHandler(req: VercelRequest, res: VercelResponse) {
   const description = ((req.body ?? {}) as { description?: string }).description ?? '';
@@ -118,6 +124,12 @@ async function parseWeightHandler(req: VercelRequest, res: VercelResponse) {
     postProcess: (raw) => {
       const r = raw as ParsedWeightResponse;
       if ((r.notes as unknown) === '') r.notes = null;
+      // If the user used hedged phrasing, force confidence down. The model sometimes still
+      // picks 'medium' for "like 75 maybe" — always low here.
+      const lower = description.toLowerCase();
+      if (HEDGE_WORDS.some((word) => lower.includes(word))) {
+        r.confidence = 'low';
+      }
       return r;
     },
   });

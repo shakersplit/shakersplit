@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/Toast';
 
 const FEATURES = [
   {
@@ -71,6 +72,19 @@ export function HomePage() {
   // When already signed in, the marketing CTAs become "Open app" / "Sign out" so the user
   // can actually exit the marketing page. Otherwise clicking "Sign in" loops back here.
   const { isAuthenticated, signOut } = useAuth();
+  const toast = useToast();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast.success('Signed out.');
+    } catch (err) {
+      console.error('sign out failed', err);
+      toast.error(err instanceof Error ? err.message : 'Sign out failed.', {
+        action: { label: 'Try again', onClick: handleSignOut },
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -85,13 +99,7 @@ export function HomePage() {
             {isAuthenticated ? (
               <>
                 <button
-                  onClick={async () => {
-                    try {
-                      await signOut();
-                    } catch (err) {
-                      console.error('sign out failed', err);
-                    }
-                  }}
+                  onClick={handleSignOut}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Sign out

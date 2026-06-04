@@ -130,7 +130,12 @@ const WORKOUT_SYSTEM_PROMPT =
   "You are a fitness-logging assistant. Given a user's plain-English workout description, return a single JSON object matching the schema. " +
   "PRESERVE EVERY NUMBER the user gave — if they said 'bench 4x8 @ 80kg', return sets:4 AND reps:8 AND weight_kg:80, NEVER drop reps. " +
   "For 'deadlift 3x5' -> sets:3, reps:5. For 'pull-ups 4x10' (bodyweight) -> sets:4, reps:10, omit weight_kg entirely (do NOT set 0). " +
-  "For runs, include distance_km and infer duration from pace if given. Estimate duration from context if not stated. Always include at least one exercise. Return ONLY the JSON.";
+  "BODYWEIGHT-ONLY SESSIONS: framing the workout as 'bodyweight' or 'calisthenics' does NOT exempt you from the per-exercise rules above. " +
+  "Example: 'bodyweight workout, 3x10 push-ups, 3x10 pull-ups, 3x12 squats, 30 min' -> " +
+  "exercises:[{name:'Push-up', sets:3, reps:10}, {name:'Pull-up', sets:3, reps:10}, {name:'Squat', sets:3, reps:12}], duration_minutes:30. " +
+  "Notice: every exercise has reps populated, and weight_kg is OMITTED (not set to 0) on every entry. " +
+  "For runs, include distance_km and infer duration from pace if given. Estimate duration from context if not stated. " +
+  "Always include at least one exercise. Return ONLY the JSON.";
 
 async function parseWorkoutHandler(req: VercelRequest, res: VercelResponse) {
   const description = ((req.body ?? {}) as { description?: string }).description ?? '';
@@ -145,12 +150,22 @@ async function parseWorkoutHandler(req: VercelRequest, res: VercelResponse) {
     postProcess: (raw) => {
       const r = raw as ParsedWorkoutResponse;
       if ((r.notes as unknown) === '') r.notes = null;
-      // Strip weight_kg=0 (model leaks bodyweight as zero despite prompt — frontend uses
-      // undefined to mean "no weight given").
+      // Belt-and-suspenders: strip weight_kg=0 (model still leaks zero on calisthenics-only
+      // sessions despite the prompt examples) AND attempt to recover dropped reps from the
+      // user's raw input. If the user wrote "3x10 push-ups" but the model only returned
+      // sets:3, look for the matching "<sets>x<reps>" pattern in the description and fill
+      // in reps so we don't lose user data.
       if (Array.isArray(r.exercises)) {
         r.exercises = r.exercises.map((ex) => {
-          const { weight_kg, ...rest } = ex;
-          return weight_kg && weight_kg > 0 ? { ...rest, weight_kg } : rest;
+          const cleaned: typeof ex = { ...ex };
+          if (cleaned.weight_kg !== undefined && cleaned.weight_kg <= 0) delete cleaned.weight_kg;
+          // Try to recover dropped reps from the original description.
+          if (cleaned.sets !== undefined && cleaned.reps === undefined) {
+            const pattern = new RegExp(`${cleaned.sets}\\s*x\\s*(\\d+)`, 'i');
+            const m = description.match(pattern);
+            if (m) cleaned.reps = Number(m[1]);
+          }
+          return cleaned;
         });
       }
       return r;

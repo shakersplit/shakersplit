@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { RefreshCw, X } from 'lucide-react';
 
@@ -40,17 +40,6 @@ export function UpdateToast() {
   // because of vite-plugin-pwa's default behavior. We add a tiny delay so the toast
   // can finish animating out before the reload happens.
   const [updating, setUpdating] = useState(false);
-
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    const handler = () => {
-      // The PWA scaffold inside the SW may also send NAVIGATE messages from
-      // notificationclick — handle those here so a tap on a push notification routes the
-      // open tab to the right page.
-    };
-    navigator.serviceWorker.addEventListener('message', handler);
-    return () => navigator.serviceWorker.removeEventListener('message', handler);
-  }, []);
 
   if (!needRefresh) return null;
 

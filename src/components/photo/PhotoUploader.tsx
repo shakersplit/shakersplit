@@ -11,10 +11,21 @@ interface PhotoUploaderProps {
   /** Called with the public URL after successful upload, or null on remove. */
   onChange: (url: string | null) => void;
   className?: string;
+  /**
+   * Optional alt-text override for the displayed image. Defaults to a generic
+   * "Uploaded photo" — passing the meal type, recipe title, etc. is much friendlier
+   * for screen readers.
+   */
+  alt?: string;
 }
 
 const MAX_DIMENSION = 1080; // resize so the long edge is at most 1080 px
 const JPEG_QUALITY = 0.85;
+// Reject anything bigger than 25MB before we even try to decode it. iPhone HEIC + ProRAW
+// shots can reach ~50MB; decoding those in canvas can OOM mobile Safari before the resize
+// runs. The post-resize JPEG ends up under 500KB regardless of input size, so we never
+// need to send that much data anyway.
+const MAX_INPUT_BYTES = 25 * 1024 * 1024;
 
 /**
  * Photo uploader for the photos bucket. Resizes the file in-browser before upload
@@ -22,7 +33,7 @@ const JPEG_QUALITY = 0.85;
  * on 12MP iPhone photos. Files are stored under `<auth.uid()>/<scope>/<random>.jpg`
  * which the storage RLS policy uses to scope writes.
  */
-export function PhotoUploader({ scope, value, onChange, className }: PhotoUploaderProps) {
+export function PhotoUploader({ scope, value, onChange, className, alt }: PhotoUploaderProps) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -32,6 +43,11 @@ export function PhotoUploader({ scope, value, onChange, className }: PhotoUpload
   const handleFile = async (file: File) => {
     if (!user) {
       setError('Sign in required.');
+      return;
+    }
+    // Pre-check: reject before decode to avoid OOM on absurdly large inputs.
+    if (file.size > MAX_INPUT_BYTES) {
+      setError(`That image is ${Math.round(file.size / 1024 / 1024)}MB. Please pick something under ${MAX_INPUT_BYTES / 1024 / 1024}MB.`);
       return;
     }
     setError('');
@@ -101,7 +117,7 @@ export function PhotoUploader({ scope, value, onChange, className }: PhotoUpload
         <div className="relative inline-block">
           <img
             src={value}
-            alt="Uploaded"
+            alt={alt ?? 'Uploaded photo'}
             className="h-32 w-32 rounded-lg object-cover border border-border"
             loading="lazy"
           />

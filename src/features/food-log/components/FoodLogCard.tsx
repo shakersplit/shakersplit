@@ -52,7 +52,7 @@ export function FoodLogCard({ log, onDelete }: FoodLogCardProps) {
       {log.photo_url && (
         <img
           src={log.photo_url}
-          alt="Meal photo"
+          alt={`${log.meal_type.replace('_', ' ').toLowerCase()} on ${formatDate(log.logged_at)}${log.food_items[0]?.name ? ` — ${log.food_items.map((i) => i.name).slice(0, 3).join(', ')}` : ''}`}
           loading="lazy"
           className="mt-3 w-full max-w-xs rounded-lg object-cover border border-border"
         />
