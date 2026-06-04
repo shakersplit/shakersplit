@@ -5,6 +5,7 @@ export const createWeightLogSchema = z.object({
   weight_kg: z.number().positive().max(500),
   body_fat_pct: z.number().min(0).max(100).optional(),
   notes: z.string().max(500).optional(),
+  share_with_friends: z.boolean().optional(),
 });
 
 export type CreateWeightLogInput = z.infer<typeof createWeightLogSchema>;

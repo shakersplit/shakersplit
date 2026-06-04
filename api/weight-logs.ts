@@ -11,7 +11,7 @@ import { createWeightLogSchema } from './_lib/validators/weight-log.validator';
 import { weightLogRepository } from './_lib/repositories/weight-log.repository';
 import { parsePagination } from './_lib/utils/pagination.util';
 import { success, paginated, error } from './_lib/utils/response.util';
-import { parseWithGemini, respondParseResult } from './_lib/utils/gemini.util';
+import { parseWithGemini, respondParseResult, makeShapeValidator } from './_lib/utils/gemini.util';
 
 export default createHandler({
   async GET(req, res, user) {
@@ -37,6 +37,7 @@ export default createHandler({
       weight_kg: body.weight_kg,
       body_fat_pct: body.body_fat_pct,
       notes: body.notes,
+      share_with_friends: body.share_with_friends ?? false,
     });
     if (dbError) {
       if (dbError.code === '23505') {
@@ -50,11 +51,12 @@ export default createHandler({
   async PATCH(req, res, user) {
     const id = req.query.id as string | undefined;
     if (!id) return error(res, 400, 'VALIDATION_ERROR', 'Missing id query param');
-    const { weight_kg, body_fat_pct, notes } = (req.body ?? {}) as Record<string, unknown>;
+    const { weight_kg, body_fat_pct, notes, share_with_friends } = (req.body ?? {}) as Record<string, unknown>;
     const updates: Record<string, unknown> = {};
     if (weight_kg !== undefined) updates.weight_kg = weight_kg;
     if (body_fat_pct !== undefined) updates.body_fat_pct = body_fat_pct;
     if (notes !== undefined) updates.notes = notes;
+    if (share_with_friends !== undefined) updates.share_with_friends = !!share_with_friends;
     if (Object.keys(updates).length === 0) {
       return error(res, 400, 'VALIDATION_ERROR', 'No fields to update');
     }
@@ -96,7 +98,12 @@ const WEIGHT_SCHEMA = {
 } as const;
 
 const WEIGHT_SYSTEM_PROMPT =
-  "You are a body-metrics-logging assistant. Given a user's plain-English weight description, return a single JSON object matching the schema. Convert lbs/stones to kg. Confidence high if user gave a specific number, low if vague. Return ONLY the JSON.";
+  "You are a body-metrics-logging assistant. Given a user's plain-English weight description, return a single JSON object matching the schema. " +
+  "Convert lbs/stones to kg (1 lb = 0.453592 kg, 1 stone = 6.35029 kg). " +
+  "Confidence high ONLY when the user gave both a number AND an explicit unit. " +
+  "If the unit is missing (e.g. 'weighed in at 82.1'), default to kg but set confidence='medium' to flag the ambiguity. " +
+  "If the user gave a vague phrase like 'a bit lighter today' with no number, set confidence='low'. " +
+  "Return ONLY the JSON.";
 
 async function parseWeightHandler(req: VercelRequest, res: VercelResponse) {
   const description = ((req.body ?? {}) as { description?: string }).description ?? '';
@@ -104,6 +111,10 @@ async function parseWeightHandler(req: VercelRequest, res: VercelResponse) {
     systemPrompt: WEIGHT_SYSTEM_PROMPT,
     responseSchema: WEIGHT_SCHEMA,
     description,
+    validate: makeShapeValidator({
+      required: ['weight_kg', 'confidence'],
+      types: { weight_kg: 'number', confidence: 'string' },
+    }),
     postProcess: (raw) => {
       const r = raw as ParsedWeightResponse;
       if ((r.notes as unknown) === '') r.notes = null;

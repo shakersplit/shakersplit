@@ -87,7 +87,7 @@ export function PhotoUploader({ scope, value, onChange, className }: PhotoUpload
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic"
+        accept="image/jpeg,image/png,image/webp"
         className="sr-only"
         onChange={(e) => {
           const file = e.target.files?.[0];

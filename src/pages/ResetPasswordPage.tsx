@@ -50,11 +50,11 @@ export function ResetPasswordPage() {
         setRecoverySession('ok');
       }
     });
-    // Wait up to 4 seconds for the recovery hash to register before treating the link as bad.
-    // Slow networks / cold-start service workers can take 2-3 seconds.
+    // Wait up to 8 seconds for the recovery hash to register before treating the link as bad.
+    // 4s wasn't enough for slow networks + cold-start service workers.
     const timeout = setTimeout(() => {
       setRecoverySession((s) => (s === 'pending' ? 'invalid' : s));
-    }, 4000);
+    }, 8000);
     return () => {
       subscription.unsubscribe();
       clearTimeout(timeout);

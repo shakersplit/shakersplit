@@ -1,6 +1,5 @@
 import webpush from 'web-push';
 import { supabaseAdmin } from '../config/supabase.config';
-import { env } from '../config/env.config';
 
 /**
  * Web Push helper — wraps the web-push library with a thin interface that:
@@ -13,7 +12,9 @@ import { env } from '../config/env.config';
 let vapidConfigured = false;
 function ensureVapid() {
   if (vapidConfigured) return;
-  // env.config doesn't yet know about VAPID — read directly from process.env.
+  // VAPID config is read directly from process.env (not via env.config) because env.config's
+  // schema doesn't list these — they're optional and only needed for push, not for the app
+  // to start.
   const subject = process.env.VAPID_SUBJECT;
   const pub = process.env.VITE_VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
@@ -23,7 +24,6 @@ function ensureVapid() {
   }
   webpush.setVapidDetails(subject, pub, priv);
   vapidConfigured = true;
-  void env; // suppress unused-import warning
 }
 
 export interface PushPayload {
@@ -75,16 +75,21 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
   const results = await Promise.all(sends);
 
   if (staleIds.length > 0) {
-    await supabaseAdmin.from('push_subscriptions').delete().in('id', staleIds);
+    const { error: delErr } = await supabaseAdmin
+      .from('push_subscriptions')
+      .delete()
+      .in('id', staleIds);
+    if (delErr) console.error('[push] failed to delete stale subscriptions:', delErr);
   }
 
   // Update last_used_at for successful sends so we can spot inactive devices later.
   const successIds = subs.filter((_, i) => results[i]).map((s) => s.id);
   if (successIds.length > 0) {
-    await supabaseAdmin
+    const { error: updErr } = await supabaseAdmin
       .from('push_subscriptions')
       .update({ last_used_at: new Date().toISOString() })
       .in('id', successIds);
+    if (updErr) console.error('[push] failed to update last_used_at:', updErr);
   }
 
   return results.filter(Boolean).length;

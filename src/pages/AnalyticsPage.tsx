@@ -98,6 +98,8 @@ export function AnalyticsPage() {
       <ChartCard title="Calories per day" subtitle={`Last ${days} days`} accent="text-food">
         {trendsLoading ? (
           <ChartSkeleton />
+        ) : formattedTrends.length === 0 ? (
+          <EmptyChart message="No data yet — log some meals to see trends." />
         ) : (
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={formattedTrends}>
@@ -122,6 +124,8 @@ export function AnalyticsPage() {
       <ChartCard title="Workout minutes per day" subtitle={`Last ${days} days`} accent="text-workout">
         {trendsLoading ? (
           <ChartSkeleton />
+        ) : formattedTrends.length === 0 ? (
+          <EmptyChart message="No data yet — log a workout to see trends." />
         ) : (
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={formattedTrends}>
@@ -146,6 +150,8 @@ export function AnalyticsPage() {
       <ChartCard title="Alcohol drinks per day" subtitle={`Last ${days} days`} accent="text-alcohol">
         {trendsLoading ? (
           <ChartSkeleton />
+        ) : formattedTrends.length === 0 ? (
+          <EmptyChart message="No data yet — log a drink to see trends." />
         ) : (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={formattedTrends}>
@@ -233,6 +239,14 @@ function ChartCard({
 
 function ChartSkeleton() {
   return <div className="h-[240px] animate-pulse rounded-lg bg-secondary/30" />;
+}
+
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div className="flex items-center justify-center text-sm text-muted-foreground py-8">
+      {message}
+    </div>
+  );
 }
 
 function Stat({

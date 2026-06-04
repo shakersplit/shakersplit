@@ -17,16 +17,28 @@ export function useAuth() {
   const { user, session, isLoading, setSession, setLoading } = useAuthStore();
 
   useEffect(() => {
+    // Coordinate isLoading=false between two sources: the initial getSession() AND the first
+    // onAuthStateChange event. Either may fire first; clear isLoading on whichever comes
+    // second to avoid a brief flash of authenticated state during sign-out / page-load races.
+    let initialCheckDone = false;
+    let firstEventReceived = false;
+
+    const tryClearLoading = () => {
+      if (initialCheckDone && firstEventReceived) setLoading(false);
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setLoading(false);
+      initialCheckDone = true;
+      tryClearLoading();
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setLoading(false);
+      firstEventReceived = true;
+      tryClearLoading();
     });
 
     return () => subscription.unsubscribe();

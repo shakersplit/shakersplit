@@ -39,14 +39,16 @@ export function LoginPage() {
   // When sign-up hits an already-existing email, we surface a friendly screen instead of a raw error.
   const [emailAlreadyExists, setEmailAlreadyExists] = useState<string | null>(null);
 
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle, isAuthenticated } = useAuth();
+  const { signInWithEmail, signUpWithEmail, signInWithGoogle, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Already signed in? Bounce to /app, NOT /. Sending to / would loop because the homepage
-    // also has Sign in / Sign up CTAs that point straight back to /auth.
+    // Wait until the auth check is fully settled before redirecting — otherwise a brief
+    // flash where isAuthenticated=true (stale) could bounce a logged-out user to /app, where
+    // AuthGuard sends them right back, creating a flicker loop.
+    if (isLoading) return;
     if (isAuthenticated) navigate('/app', { replace: true });
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, isLoading, navigate]);
 
   const strength = getPasswordStrength(password);
 

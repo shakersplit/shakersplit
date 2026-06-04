@@ -11,7 +11,7 @@ import { createAlcoholLogSchema } from './_lib/validators/alcohol-log.validator'
 import { alcoholLogRepository } from './_lib/repositories/alcohol-log.repository';
 import { parsePagination } from './_lib/utils/pagination.util';
 import { success, paginated, error } from './_lib/utils/response.util';
-import { parseWithGemini, respondParseResult } from './_lib/utils/gemini.util';
+import { parseWithGemini, respondParseResult, makeShapeValidator } from './_lib/utils/gemini.util';
 
 export default createHandler({
   async GET(req, res, user) {
@@ -49,6 +49,7 @@ export default createHandler({
       intoxication_level: body.intoxication_level,
       hangover_severity: body.hangover_severity,
       notes: body.notes,
+      share_with_friends: body.share_with_friends ?? false,
     });
     if (dbError) return error(res, 500, 'INTERNAL_ERROR', dbError.message);
     return success(res, data, 201);
@@ -69,6 +70,7 @@ export default createHandler({
       intoxication_level: body.intoxication_level,
       hangover_severity: body.hangover_severity,
       notes: body.notes,
+      share_with_friends: body.share_with_friends ?? false,
     });
     if (dbError || !data) return error(res, 404, 'NOT_FOUND', 'Alcohol log not found');
     return success(res, data);
@@ -120,7 +122,13 @@ const ALCOHOL_SCHEMA = {
 } as const;
 
 const ALCOHOL_SYSTEM_PROMPT =
-  "You are an alcohol-logging assistant. Given a user's plain-English drink description, return a single JSON object matching the schema. Convert quantities to ml. spirit_type must be lowercase. Be generous with pre_game_meal_eaten if any food was mentioned. Return ONLY the JSON.";
+  "You are an alcohol-logging assistant. Given a user's plain-English drink description, return a single JSON object matching the schema. " +
+  "CRITICAL — quantity_ml must be the AMOUNT OF PURE SPIRIT/BEER/WINE consumed, NOT total drink volume. " +
+  "For mixed drinks, include only the alcoholic part: '2 vodka sodas' = 60ml (2 × 30ml shots), the soda is in mixer. " +
+  "For cocktails like a negroni, sum only the alcoholic ingredients (gin + vermouth + campari = ~90ml total alcohol), and pick the dominant spirit as spirit_type. " +
+  "Standard ml: shot/peg = 30ml, double = 60ml, beer can = 330ml, beer pint = 500ml, wine glass = 150ml, wine bottle = 750ml. " +
+  "spirit_type must be lowercase: vodka, gin, tequila, rum, whiskey, beer, wine, cocktail, other. " +
+  "Set pre_game_meal_eaten=true if any food was mentioned. Return ONLY the JSON.";
 
 async function parseAlcoholHandler(req: VercelRequest, res: VercelResponse) {
   const description = ((req.body ?? {}) as { description?: string }).description ?? '';
@@ -128,10 +136,16 @@ async function parseAlcoholHandler(req: VercelRequest, res: VercelResponse) {
     systemPrompt: ALCOHOL_SYSTEM_PROMPT,
     responseSchema: ALCOHOL_SCHEMA,
     description,
+    validate: makeShapeValidator({
+      required: ['spirit_type', 'quantity_ml', 'pre_game_meal_eaten', 'confidence'],
+      types: { spirit_type: 'string', quantity_ml: 'number', pre_game_meal_eaten: 'boolean', confidence: 'string' },
+    }),
     postProcess: (raw) => {
       const r = raw as ParsedAlcoholResponse;
       if ((r.notes as unknown) === '') r.notes = null;
       if ((r.mixer as unknown) === '') r.mixer = null;
+      // Normalize: spirit_type to lowercase regardless of what Gemini returned.
+      if (typeof r.spirit_type === 'string') r.spirit_type = r.spirit_type.toLowerCase();
       return r;
     },
   });

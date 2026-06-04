@@ -14,7 +14,7 @@ import { createMentalHealthLogSchema } from './_lib/validators/mental-health-log
 import { supabaseAdmin } from './_lib/config/supabase.config';
 import { parsePagination } from './_lib/utils/pagination.util';
 import { success, paginated, error } from './_lib/utils/response.util';
-import { parseWithGemini, respondParseResult } from './_lib/utils/gemini.util';
+import { parseWithGemini, respondParseResult, makeShapeValidator } from './_lib/utils/gemini.util';
 
 export default createHandler({
   async GET(req, res, user) {
@@ -63,6 +63,7 @@ export default createHandler({
         sleep_quality: body.sleep_quality,
         journal_entry: body.journal_entry,
         tags: body.tags ?? [],
+        share_with_friends: body.share_with_friends ?? false,
       })
       .select()
       .single();
@@ -84,6 +85,7 @@ export default createHandler({
         sleep_quality: body.sleep_quality,
         journal_entry: body.journal_entry,
         tags: body.tags ?? [],
+        share_with_friends: body.share_with_friends ?? false,
       })
       .eq('id', id)
       .eq('user_id', user.id)
@@ -150,6 +152,10 @@ async function parseMentalHandler(req: VercelRequest, res: VercelResponse) {
     systemPrompt: MENTAL_SYSTEM_PROMPT,
     responseSchema: MENTAL_SCHEMA,
     description,
+    validate: makeShapeValidator({
+      required: ['mood_score', 'journal_entry', 'tags', 'confidence'],
+      types: { mood_score: 'number', journal_entry: 'string', tags: 'array', confidence: 'string' },
+    }),
     postProcess: (raw) => {
       const r = raw as ParsedMentalResponse;
       if ((r.journal_entry as unknown) === '') r.journal_entry = null;

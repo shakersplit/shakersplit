@@ -7,6 +7,7 @@ export const createMentalHealthLogSchema = z.object({
   sleep_quality: z.number().int().min(1).max(5).optional(),
   journal_entry: z.string().max(5000).optional(),
   tags: z.array(z.string().max(50)).max(20).optional(),
-});
+  share_with_friends: z.boolean().optional(),
+});;
 
 export type CreateMentalHealthLogInput = z.infer<typeof createMentalHealthLogSchema>;

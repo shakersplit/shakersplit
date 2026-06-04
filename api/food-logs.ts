@@ -94,7 +94,7 @@ export default createHandler({
 // ── AI parser ───────────────────────────────────────────────────────────────
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { parseWithGemini, respondParseResult } from './_lib/utils/gemini.util';
+import { parseWithGemini, respondParseResult, makeShapeValidator } from './_lib/utils/gemini.util';
 
 interface ParsedFoodResponse {
   meal_type: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK' | 'PRE_GAME';
@@ -146,6 +146,10 @@ async function parseAIHandler(req: VercelRequest, res: VercelResponse) {
     systemPrompt: FOOD_SYSTEM_PROMPT,
     responseSchema: FOOD_SCHEMA,
     description,
+    validate: makeShapeValidator({
+      required: ['meal_type', 'items', 'total_calories', 'total_protein_g', 'confidence'],
+      types: { meal_type: 'string', items: 'array', total_calories: 'number', total_protein_g: 'number', confidence: 'string' },
+    }),
     postProcess: (raw) => {
       const r = raw as ParsedFoodResponse;
       // Empty-string notes -> null so the frontend can use truthy checks.

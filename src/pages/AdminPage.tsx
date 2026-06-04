@@ -319,7 +319,11 @@ function RecipesTab() {
 
   const remove = useMutation({
     mutationFn: (id: string) => apiClient('/admin', { method: 'DELETE', params: { resource: 'recipes', id } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'recipes'] }),
+    onSuccess: () => {
+      // Invalidate BOTH the admin list AND the public Explore cache.
+      queryClient.invalidateQueries({ queryKey: ['admin', 'recipes'] });
+      queryClient.invalidateQueries({ queryKey: ['recipes', 'public'] });
+    },
   });
 
   const recipes = data?.data ?? [];
@@ -562,7 +566,10 @@ function RoutinesTab() {
 
   const remove = useMutation({
     mutationFn: (id: string) => apiClient('/admin', { method: 'DELETE', params: { resource: 'routines', id } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'routines'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'routines'] });
+      queryClient.invalidateQueries({ queryKey: ['workout-routines', 'public'] });
+    },
   });
 
   const routines = data?.data ?? [];

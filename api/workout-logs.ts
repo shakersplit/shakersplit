@@ -13,7 +13,7 @@ import { createWorkoutLogSchema } from './_lib/validators/workout-log.validator'
 import { workoutLogRepository } from './_lib/repositories/workout-log.repository';
 import { parsePagination } from './_lib/utils/pagination.util';
 import { success, paginated, error } from './_lib/utils/response.util';
-import { parseWithGemini, respondParseResult } from './_lib/utils/gemini.util';
+import { parseWithGemini, respondParseResult, makeShapeValidator } from './_lib/utils/gemini.util';
 
 export default createHandler({
   async GET(req, res, user) {
@@ -49,6 +49,7 @@ export default createHandler({
       exercises: body.exercises,
       calories_burned: body.calories_burned,
       notes: body.notes,
+      share_with_friends: body.share_with_friends ?? false,
     });
     if (dbError) return error(res, 500, 'INTERNAL_ERROR', dbError.message);
     return success(res, data, 201);
@@ -66,6 +67,7 @@ export default createHandler({
       exercises: body.exercises,
       calories_burned: body.calories_burned,
       notes: body.notes,
+      share_with_friends: body.share_with_friends ?? false,
     });
     if (dbError || !data) return error(res, 404, 'NOT_FOUND', 'Workout log not found');
     return success(res, data);
@@ -109,9 +111,9 @@ const WORKOUT_SCHEMA = {
         type: 'object',
         properties: {
           name: { type: 'string', description: 'Exercise name, capitalized. e.g. "Bench Press", "Pull-up", "5K run".' },
-          sets: { type: 'number', description: 'Number of sets if a strength exercise.' },
-          reps: { type: 'number', description: 'Reps per set if known.' },
-          weight_kg: { type: 'number', description: 'Weight in kg if user mentioned it.' },
+          sets: { type: 'number', description: 'Number of sets if a strength exercise. REQUIRED for any strength exercise (bench, squat, row, etc.).' },
+          reps: { type: 'number', description: 'Reps per set if known. REQUIRED for any strength exercise. For "4x8" -> sets:4, reps:8. NEVER drop reps when the user gave them.' },
+          weight_kg: { type: 'number', description: 'Weight in kg if user mentioned it. For bodyweight exercises (pull-ups, dips, push-ups), OMIT this field entirely instead of using 0.' },
           distance_km: { type: 'number', description: 'Distance in km for running/walking. Convert miles to km if needed.' },
         },
         required: ['name'],
@@ -125,7 +127,10 @@ const WORKOUT_SCHEMA = {
 } as const;
 
 const WORKOUT_SYSTEM_PROMPT =
-  "You are a fitness-logging assistant. Given a user's plain-English workout description, return a single JSON object matching the schema. Parse exercises with their sets/reps/weight when provided (e.g. 'bench 4x8 @ 80kg' -> sets:4, reps:8, weight_kg:80). For runs, include distance_km. Estimate duration from context if not given. Always include at least one exercise. Return ONLY the JSON.";
+  "You are a fitness-logging assistant. Given a user's plain-English workout description, return a single JSON object matching the schema. " +
+  "PRESERVE EVERY NUMBER the user gave — if they said 'bench 4x8 @ 80kg', return sets:4 AND reps:8 AND weight_kg:80, NEVER drop reps. " +
+  "For 'deadlift 3x5' -> sets:3, reps:5. For 'pull-ups 4x10' (bodyweight) -> sets:4, reps:10, omit weight_kg entirely (do NOT set 0). " +
+  "For runs, include distance_km and infer duration from pace if given. Estimate duration from context if not stated. Always include at least one exercise. Return ONLY the JSON.";
 
 async function parseWorkoutHandler(req: VercelRequest, res: VercelResponse) {
   const description = ((req.body ?? {}) as { description?: string }).description ?? '';
@@ -133,9 +138,21 @@ async function parseWorkoutHandler(req: VercelRequest, res: VercelResponse) {
     systemPrompt: WORKOUT_SYSTEM_PROMPT,
     responseSchema: WORKOUT_SCHEMA,
     description,
+    validate: makeShapeValidator({
+      required: ['workout_type', 'duration_minutes', 'exercises', 'confidence'],
+      types: { workout_type: 'string', duration_minutes: 'number', exercises: 'array', confidence: 'string' },
+    }),
     postProcess: (raw) => {
       const r = raw as ParsedWorkoutResponse;
       if ((r.notes as unknown) === '') r.notes = null;
+      // Strip weight_kg=0 (model leaks bodyweight as zero despite prompt — frontend uses
+      // undefined to mean "no weight given").
+      if (Array.isArray(r.exercises)) {
+        r.exercises = r.exercises.map((ex) => {
+          const { weight_kg, ...rest } = ex;
+          return weight_kg && weight_kg > 0 ? { ...rest, weight_kg } : rest;
+        });
+      }
       return r;
     },
   });

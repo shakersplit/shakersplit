@@ -190,7 +190,7 @@ function GoalCard({
   // Progress bar: clamped 0..1 of actual / target. For "max" we invert so being under is good.
   let progress: number = 0;
   let onTrack = false;
-  if (actual !== null) {
+  if (actual !== null && target > 0) {
     if (def.comparison === 'min') {
       progress = Math.min(1, Math.max(0, actual / target));
       onTrack = actual >= target;

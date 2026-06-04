@@ -57,11 +57,13 @@ export default createHandler({
       return error(res, 400, 'VALIDATION_ERROR', 'addressee_email required');
     }
 
-    // Find the addressee user by email.
+    // Find the addressee user by email. Use ilike for case-insensitive matching since
+    // some users may have signed up with mixed-case emails before Supabase Auth's
+    // normalization landed.
     const { data: target } = await supabaseAdmin
       .from('users')
       .select('id, email')
-      .eq('email', result.data.addressee_email)
+      .ilike('email', result.data.addressee_email)
       .maybeSingle();
 
     if (!target) {
@@ -94,24 +96,28 @@ export default createHandler({
     if (dbErr) return error(res, 500, 'INTERNAL_ERROR', dbErr.message);
 
     // Fire-and-forget push to the addressee. We don't await the send so a slow push
-    // service can't delay the API response. Look up the requester's display name for
-    // a friendlier notification body.
-    void supabaseAdmin
-      .from('users')
-      .select('display_name, email')
-      .eq('id', user.id)
-      .single()
-      .then(({ data: requester }) => {
+    // service can't delay the API response. Wrap in an async IIFE because Supabase's
+    // query builder returns a PromiseLike (not a Promise), so .then(...).catch(...) chaining
+    // doesn't compile under strict TS — we use try/catch in an async function instead.
+    void (async () => {
+      try {
+        const { data: requester } = await supabaseAdmin
+          .from('users')
+          .select('display_name, email')
+          .eq('id', user.id)
+          .single();
         const requesterName =
           requester?.display_name || requester?.email?.split('@')[0] || 'Someone';
-        return sendPushToUser(target.id, {
+        await sendPushToUser(target.id, {
           title: 'New friend request',
           body: `${requesterName} wants to be friends.`,
           url: '/app/friends',
           tag: `friend-req-${data.id}`,
         });
-      })
-      .catch((e) => console.error('friend-request push failed:', e));
+      } catch (e) {
+        console.error('friend-request push failed:', e);
+      }
+    })();
 
     return success(res, data, 201);
   },
@@ -126,7 +132,7 @@ export default createHandler({
     // Only the addressee can accept/decline.
     const { data: existing } = await supabaseAdmin
       .from('friendships')
-      .select('id, addressee_id, status')
+      .select('id, addressee_id, requester_id, status')
       .eq('id', id)
       .maybeSingle();
     if (!existing) return error(res, 404, 'NOT_FOUND', 'Friendship not found');
@@ -143,25 +149,28 @@ export default createHandler({
 
     // Notify the requester that their request was accepted (ignore declines — quieter UX).
     if (result.data.status === 'ACCEPTED') {
-      void supabaseAdmin
-        .from('users')
-        .select('display_name, email')
-        .eq('id', user.id)
-        .single()
-        .then(({ data: accepter }) => {
+      void (async () => {
+        try {
+          const { data: accepter } = await supabaseAdmin
+            .from('users')
+            .select('display_name, email')
+            .eq('id', user.id)
+            .single();
           const accepterName =
             accepter?.display_name || accepter?.email?.split('@')[0] || 'Someone';
           // existing.requester_id = the user who originally sent the request.
           const requesterId = (existing as { requester_id?: string }).requester_id;
-          if (!requesterId) return 0;
-          return sendPushToUser(requesterId, {
+          if (!requesterId) return;
+          await sendPushToUser(requesterId, {
             title: 'Friend request accepted',
             body: `${accepterName} accepted your friend request. 🎉`,
             url: '/app/friends',
             tag: `friend-acc-${id}`,
           });
-        })
-        .catch((e) => console.error('friend-accept push failed:', e));
+        } catch (e) {
+          console.error('friend-accept push failed:', e);
+        }
+      })();
     }
 
     return success(res, data);

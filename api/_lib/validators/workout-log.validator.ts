@@ -28,6 +28,7 @@ export const createWorkoutLogSchema = z.object({
   exercises: z.array(exerciseSchema).min(1),
   calories_burned: z.number().positive().optional(),
   notes: z.string().optional(),
+  share_with_friends: z.boolean().optional(),
 });
 
 export type CreateWorkoutLogInput = z.infer<typeof createWorkoutLogSchema>;

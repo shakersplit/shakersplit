@@ -10,6 +10,7 @@ export const createAlcoholLogSchema = z.object({
   intoxication_level: z.number().int().min(1).max(5).optional(),
   hangover_severity: z.number().int().min(1).max(5).optional(),
   notes: z.string().optional(),
+  share_with_friends: z.boolean().optional(),
 });
 
 export type CreateAlcoholLogInput = z.infer<typeof createAlcoholLogSchema>;
