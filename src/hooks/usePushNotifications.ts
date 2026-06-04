@@ -40,6 +40,10 @@ export function usePushNotifications() {
   const [devices, setDevices] = useState<PushDevice[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // True once the async serviceWorker.ready chain has settled — until then, `endpoint` is
+  // necessarily `null` and consumers can't reliably tell "no subscription" from "still
+  // checking". The post-sign-in prompt uses this to avoid a false-positive show.
+  const [subscriptionLoaded, setSubscriptionLoaded] = useState(false);
 
   // 1. Detect capability + current permission state once on mount.
   useEffect(() => {
@@ -54,16 +58,25 @@ export function usePushNotifications() {
       } else {
         setPermission('unsupported');
       }
+      // No SW = nothing to load. Mark loaded immediately so consumers don't hang.
+      setSubscriptionLoaded(true);
       return;
     }
 
     setPermission(Notification.permission as PushPermissionState);
 
     // Restore current subscription state if there is one.
-    void navigator.serviceWorker.ready.then(async (reg) => {
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) setEndpoint(sub.endpoint);
-    });
+    void navigator.serviceWorker.ready
+      .then(async (reg) => {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) setEndpoint(sub.endpoint);
+      })
+      .catch((err) => {
+        // SW registration failed (private mode, content blockers, etc.) — surface no
+        // subscription rather than hanging the consumer.
+        console.warn('[push] serviceWorker.ready failed', err);
+      })
+      .finally(() => setSubscriptionLoaded(true));
   }, []);
 
   // 2. List subscribed devices for this account.
@@ -100,6 +113,9 @@ export function usePushNotifications() {
 
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
+      // Track whether WE created the subscription on this call so we can roll back on a
+      // server-persist failure. If the subscription already existed, leave it alone.
+      let createdHere = false;
       if (!sub) {
         // applicationServerKey wants ArrayBuffer (or string). Cast through ArrayBuffer to
         // satisfy strict TS lib types — the runtime accepts any TypedArray with a backing buffer.
@@ -108,18 +124,31 @@ export function usePushNotifications() {
           userVisibleOnly: true,
           applicationServerKey: keyBytes.buffer as ArrayBuffer,
         });
+        createdHere = true;
       }
 
       const json = sub.toJSON();
-      await apiClient('/users/me', {
-        method: 'POST',
-        params: { action: 'push-subscribe' },
-        body: {
-          endpoint: json.endpoint,
-          keys: json.keys,
-          user_agent: navigator.userAgent,
-        },
-      });
+      try {
+        await apiClient('/users/me', {
+          method: 'POST',
+          params: { action: 'push-subscribe' },
+          body: {
+            endpoint: json.endpoint,
+            keys: json.keys,
+            user_agent: navigator.userAgent,
+          },
+        });
+      } catch (serverErr) {
+        // Server didn't accept the subscription. If we created the local subscription on
+        // this call, roll it back so we don't leave an orphan PushSubscription that has no
+        // server-side row — that would silently suppress any future enable-prompt UI
+        // because the next mount would see isSubscribed=true with no way for the server to
+        // actually deliver a push to it.
+        if (createdHere) {
+          try { await sub.unsubscribe(); } catch { /* best-effort */ }
+        }
+        throw serverErr;
+      }
 
       setEndpoint(sub.endpoint);
       await refreshDevices();
@@ -178,6 +207,7 @@ export function usePushNotifications() {
   return {
     permission,
     isSubscribed: !!endpoint,
+    subscriptionLoaded,
     devices,
     loading,
     error,
